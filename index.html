@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZenAI Workspace</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{colors:{
+  zen:{bg:'#1e2022',text:'#d1d0c5',accent:'#e2b714',panel:'#252729',border:'#2a2d30',muted:'#4a4d52',hover:'#2e3134',card:'#252729'}
+},fontFamily:{mono:['"Fira Code"','ui-monospace','monospace'],sans:['Inter','system-ui','sans-serif'],serif:['"Crimson Pro"','Georgia','serif']}}}}
+</script>
+<style>
+*{box-sizing:border-box}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#3a3d42;border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:#646669}
+
+/* Core */
+[contenteditable]{outline:none;caret-color:#e2b714}
+[contenteditable]:empty::before{content:attr(data-placeholder);color:#4a4d52;pointer-events:none;display:block}
+
+/* Tree */
+.tree-item{transition:all .12s ease;border-left:2px solid transparent}
+.tree-item:hover{background:#2e3134}
+.tree-item.active{background:#2e3134;color:#e2b714;border-left-color:#e2b714}
+.folder-kids.collapsed{display:none}
+.chevron{transition:transform .18s ease}
+.chevron.open{transform:rotate(90deg)}
+
+/* Dropdowns */
+.dropdown-menu{display:none;position:absolute;z-index:60}
+.dropdown-menu.open{display:block}
+
+/* Modals */
+.modal-bg{animation:fadeIn .15s ease}
+.modal-box{animation:slideUp .18s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* Focus mode variants */
+body.focus-zen #left-sidebar,body.focus-zen #navbar-bar,body.focus-zen #ai-sidebar,body.focus-zen #toolbar-bar{display:none!important}
+body.focus-zen #main-area{background:#1e2022}
+body.focus-zen #editor{max-width:680px;font-size:1.15rem;line-height:2.1}
+body.focus-zen #editor-container{padding-top:15vh}
+
+body.focus-sepia #left-sidebar,body.focus-sepia #navbar-bar,body.focus-sepia #ai-sidebar,body.focus-sepia #toolbar-bar{display:none!important}
+body.focus-sepia #main-area{background:#f4efe6}
+body.focus-sepia #editor{max-width:680px;font-size:1.15rem;line-height:2.1;color:#3d2b1a;font-family:'Crimson Pro',Georgia,serif;caret-color:#8b6914}
+body.focus-sepia #editor-container{padding-top:15vh;background:#f4efe6}
+body.focus-sepia #editor-breadcrumb{color:#a08060}
+
+body.focus-dark #left-sidebar,body.focus-dark #navbar-bar,body.focus-dark #ai-sidebar,body.focus-dark #toolbar-bar{display:none!important}
+body.focus-dark #main-area{background:#000}
+body.focus-dark #editor{max-width:680px;font-size:1.15rem;line-height:2.1;color:#c0c0c0}
+body.focus-dark #editor-container{padding-top:15vh;background:#000}
+
+/* Typewriter mode: scroll so cursor stays in center */
+.typewriter-mode #editor-container{scroll-behavior:smooth}
+
+/* Smooth caret pulse */
+@keyframes caretPulse{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Editor content styles */
+#editor h1{font-size:2em;font-weight:700;margin:1.2em 0 .4em;color:#d1d0c5}
+#editor h2{font-size:1.4em;font-weight:600;margin:1em 0 .3em;color:#d1d0c5;border-bottom:1px solid #2a2d30;padding-bottom:.3em}
+#editor h3{font-size:1.1em;font-weight:600;margin:.8em 0 .2em;color:#c8c7bb}
+#editor p{margin:.5em 0}
+#editor ul,#editor ol{padding-left:1.6em;margin:.5em 0}
+#editor li{margin:.25em 0}
+#editor blockquote{border-left:3px solid #e2b714;padding:.3em 1em;margin:1em 0;color:#8a8980;font-style:italic;background:#252729;border-radius:0 4px 4px 0}
+#editor pre{background:#252729;padding:1rem;border-radius:6px;margin:1em 0;overflow-x:auto;border:1px solid #2a2d30;font-size:.85em}
+#editor code{background:#252729;padding:1px 5px;border-radius:3px;font-size:.85em;color:#e2b714;font-family:'Fira Code',monospace}
+#editor pre code{background:transparent;padding:0;color:#d1d0c5}
+#editor img{max-width:100%;border-radius:8px;margin:1em 0;display:block}
+#editor a{color:#e2b714;text-decoration:underline;text-underline-offset:2px}
+#editor hr{border:none;border-top:1px solid #2a2d30;margin:2em 0}
+#editor table{width:100%;border-collapse:collapse;margin:1em 0}
+#editor th,#editor td{border:1px solid #2a2d30;padding:.5em .8em;text-align:left}
+#editor th{background:#252729;color:#e2b714;font-weight:600}
+
+/* AI callout */
+.ai-callout{border-left:3px solid #e2b714;background:#252729;padding:.8rem 1rem;margin:1.2rem 0;border-radius:0 6px 6px 0;color:#d1d0c5;font-size:.95em}
+.ai-callout strong{color:#e2b714;display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;font-size:.8em;text-transform:uppercase;letter-spacing:.05em}
+
+/* Toggle */
+.tog-track{width:36px;height:20px;background:#2e3134;border-radius:10px;position:relative;cursor:pointer;transition:background .2s;border:1px solid #3a3d42;flex-shrink:0}
+.tog-track.on{background:#e2b714}
+.tog-thumb{position:absolute;top:2px;left:2px;width:14px;height:14px;background:#fff;border-radius:50%;transition:left .18s;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.tog-track.on .tog-thumb{left:18px}
+
+/* Highlight swatches */
+.hl-sw{width:16px;height:16px;border-radius:3px;border:1px solid rgba(0,0,0,.25);cursor:pointer;transition:transform .1s,box-shadow .1s}
+.hl-sw:hover{transform:scale(1.25);box-shadow:0 0 0 2px rgba(226,183,20,.4)}
+
+/* Autosave dot */
+#autosave-dot{width:5px;height:5px;border-radius:50%;background:#3a3d42;transition:background .4s,box-shadow .4s;display:inline-block}
+#autosave-dot.saved{background:#e2b714;box-shadow:0 0 6px #e2b71480}
+
+/* Command palette */
+#cmd-palette{position:fixed;top:22%;left:50%;transform:translateX(-50%);width:560px;max-width:95vw;z-index:100;display:none}
+#cmd-palette.open{display:block}
+.cmd-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;border-radius:6px;transition:background .1s;font-size:.88rem}
+.cmd-item:hover,.cmd-item.selected{background:#2e3134;color:#e2b714}
+.cmd-item kbd{margin-left:auto;background:#2a2d30;padding:1px 6px;border-radius:3px;font-size:.72rem;color:#646669;font-family:'Fira Code',monospace;border:1px solid #3a3d42}
+
+/* Pomodoro */
+#pomodoro-ring{stroke-dasharray:220;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear;transform:rotate(-90deg);transform-origin:center}
+
+/* Word goal bar */
+#goal-bar-inner{transition:width .4s ease}
+
+/* Milestone toast */
+#milestone-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#e2b714;color:#1e2022;padding:.6rem 1.2rem;border-radius:20px;font-weight:700;font-size:.85rem;z-index:90;opacity:0;transition:opacity .3s;pointer-events:none;font-family:Inter,sans-serif}
+#milestone-toast.show{opacity:1}
+
+/* Scrolling text cursor line - typewriter highlight */
+#cursor-line{position:absolute;left:0;right:0;height:2em;background:rgba(226,183,20,.04);pointer-events:none;transition:top .12s ease;display:none;z-index:0}
+body.typewriter-mode #cursor-line{display:block}
+
+/* API key banner */
+#api-banner{background:linear-gradient(90deg,#e2b71420,#e2b71408);border:1px solid #e2b71440;border-radius:8px;padding:.6rem 1rem;font-size:.8rem;color:#e2b714;display:flex;align-items:center;gap:.5rem}
+
+/* Settings tabs */
+.stab{padding:.4rem .8rem;border-radius:6px;font-size:.8rem;cursor:pointer;transition:background .15s;color:#4a4d52}
+.stab.active{background:#2e3134;color:#e2b714}
+.stab-content{display:none}
+.stab-content.active{display:block}
+
+/* Tooltip */
+[data-tip]{position:relative}
+[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1c1e;color:#d1d0c5;padding:3px 8px;border-radius:4px;font-size:.72rem;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:99;font-family:Inter,sans-serif;border:1px solid #2a2d30}
+[data-tip]:hover::after{opacity:1}
+
+/* Drag over */
+.drag-over{border:1px dashed #e2b714!important;background:#e2b71408!important}
+
+/* Version history item */
+.version-item{cursor:pointer;transition:background .1s}
+.version-item:hover{background:#2e3134}
+
+/* Char animation */
+@keyframes popChar{0%{opacity:0;transform:translateY(2px)}100%{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body class="bg-zen-bg text-zen-text font-sans h-screen flex flex-col overflow-hidden" style="font-size:14px">
+
+<!-- ===== COMMAND PALETTE ===== -->
+<div id="cmd-backdrop" class="fixed inset-0 bg-black/60 z-[99] hidden backdrop-blur-sm" onclick="closeCommandPalette()"></div>
+<div id="cmd-palette" class="bg-zen-panel border border-zen-border rounded-xl shadow-2xl overflow-hidden">
+  <div class="flex items-center gap-2 px-4 py-3 border-b border-zen-border">
+    <i data-lucide="terminal" class="w-4 h-4 text-zen-accent flex-shrink-0"></i>
+    <input id="cmd-input" type="text" placeholder="Typ een commando of zoek..."
+           class="flex-1 bg-transparent outline-none text-zen-text placeholder-zen-muted text-sm"
+           oninput="filterCommands(this.value)" onkeydown="handleCmdKey(event)">
+    <kbd class="text-xs text-zen-muted bg-zen-bg border border-zen-border px-1.5 py-0.5 rounded">ESC</kbd>
+  </div>
+  <div id="cmd-list" class="py-1.5 px-2 max-h-72 overflow-y-auto"></div>
+</div>
+
+<!-- ===== MILESTONE TOAST ===== -->
+<div id="milestone-toast">🎉 Mijlpaal bereikt!</div>
+
+<!-- ===== HOME VIEW ===== -->
+<div id="home-view" class="flex-1 flex flex-col w-full overflow-y-auto">
+  <div class="max-w-5xl w-full mx-auto px-6 pt-12 pb-16">
+
+    <!-- Header -->
+    <div class="flex justify-between items-start mb-12">
+      <div>
+        <div class="flex items-center gap-3 mb-1">
+          <div class="w-8 h-8 bg-zen-accent rounded-lg flex items-center justify-center">
+            <i data-lucide="terminal" class="w-4 h-4 text-zen-bg"></i>
+          </div>
+          <h1 class="text-2xl font-bold text-zen-text tracking-tight">ZenAI Workspace</h1>
+        </div>
+        <p class="text-zen-muted text-sm ml-11">Jouw intelligente schrijfomgeving</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="openCommandPalette()" class="flex items-center gap-2 px-3 py-2 bg-zen-card border border-zen-border rounded-lg text-zen-muted hover:text-zen-accent hover:border-zen-accent transition-all text-xs" data-tip="Command Palette (Ctrl+K)">
+          <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Ctrl+K</span>
+        </button>
+        <button onclick="toggleSettings()" class="p-2 bg-zen-card border border-zen-border rounded-lg text-zen-muted hover:text-zen-accent hover:border-zen-accent transition-all" data-tip="Instellingen">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+        <button onclick="openNameModal('Nieuw project','',createNewProject)"
+                class="flex items-center gap-2 px-4 py-2 bg-zen-accent text-zen-bg font-semibold rounded-lg hover:opacity-90 transition text-sm">
+          <i data-lucide="folder-plus" class="w-4 h-4"></i> Nieuw project
+        </button>
+      </div>
+    </div>
+
+    <!-- API key banner (shown if no key) -->
+    <div id="api-banner-home" class="api-banner mb-6 hidden">
+      <div class="api-banner flex items-center gap-3 bg-zen-accent/10 border border-zen-accent/30 rounded-lg px-4 py-3 text-sm font-sans">
+        <i data-lucide="key" class="w-4 h-4 text-zen-accent flex-shrink-0"></i>
+        <span class="text-zen-text flex-1">Voer je <strong class="text-zen-accent">Gemini API-sleutel</strong> in om AI-functies te activeren.</span>
+        <button onclick="openApiKeyModal()" class="px-3 py-1.5 bg-zen-accent text-zen-bg font-semibold rounded-md text-xs hover:opacity-90 transition">API-sleutel instellen</button>
+      </div>
+    </div>
+
+    <!-- Stats bar -->
+    <div id="home-stats" class="flex gap-4 mb-8 font-sans hidden">
+      <div class="flex items-center gap-2 text-xs text-zen-muted">
+        <div class="w-2 h-2 rounded-full bg-zen-accent"></div>
+        <span id="home-streak">0 dagen schrijfreeks</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-zen-muted">
+        <i data-lucide="file-text" class="w-3 h-3"></i>
+        <span id="home-total-words">0 totale woorden</span>
+      </div>
+    </div>
+
+    <!-- Projects grid -->
+    <div id="projects-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 font-sans"></div>
+  </div>
+</div>
+
+<!-- ===== EDITOR VIEW ===== -->
+<div id="editor-view" class="flex-1 flex w-full overflow-hidden hidden">
+
+  <!-- Left Sidebar -->
+  <div id="left-sidebar" class="w-56 bg-zen-panel border-r border-zen-border flex flex-col flex-shrink-0 font-sans">
+    <!-- Nav -->
+    <div class="px-3 py-2 border-b border-zen-border flex items-center justify-between">
+      <button onclick="goHome()" class="flex items-center gap-1.5 text-zen-muted hover:text-zen-accent transition-colors text-xs">
+        <i data-lucide="arrow-left" class="w-3 h-3"></i> Home
+      </button>
+      <div class="flex items-center gap-1">
+        <span id="autosave-dot" title="Automatisch opslaan"></span>
+        <button onclick="openCommandPalette()" class="text-zen-muted hover:text-zen-accent p-0.5 transition-colors" data-tip="Ctrl+K">
+          <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="toggleSidebarLeft()" class="text-zen-muted hover:text-zen-accent p-0.5 transition-colors">
+          <i data-lucide="panel-left-close" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Project title -->
+    <div class="px-3 py-2 border-b border-zen-border bg-zen-bg">
+      <div class="flex items-center justify-between mb-2">
+        <h2 id="current-project-title" class="font-semibold text-xs text-zen-accent truncate flex-1"></h2>
+        <button onclick="renameCurrentProject()" class="text-zen-muted hover:text-zen-accent p-0.5 ml-1 opacity-0 hover:opacity-100 transition" id="rename-proj-btn">
+          <i data-lucide="pencil" class="w-3 h-3"></i>
+        </button>
+      </div>
+
+      <!-- New Item dropdown -->
+      <div class="relative mb-2" id="ni-container">
+        <button onclick="toggleNI()" class="w-full py-1.5 px-2.5 bg-zen-panel border border-zen-border rounded-md text-xs text-zen-text hover:border-zen-accent hover:text-zen-accent transition-all flex items-center justify-between group">
+          <span class="flex items-center gap-1.5"><i data-lucide="plus" class="w-3 h-3"></i> Nieuw item</span>
+          <i data-lucide="chevron-down" class="w-3 h-3 opacity-40 group-hover:opacity-100" id="ni-chev"></i>
+        </button>
+        <div id="ni-dropdown" class="dropdown-menu bg-zen-panel border border-zen-border rounded-lg shadow-2xl overflow-hidden mt-1 left-0 right-0">
+          <button onclick="openNewPageModal(null)" class="w-full text-left px-3 py-2 hover:bg-zen-hover hover:text-zen-accent text-xs flex items-center gap-2 transition-colors">
+            <i data-lucide="file-text" class="w-3.5 h-3.5 text-zen-muted"></i> Document
+          </button>
+          <button onclick="openNewFolderModal()" class="w-full text-left px-3 py-2 hover:bg-zen-hover hover:text-zen-accent text-xs flex items-center gap-2 transition-colors">
+            <i data-lucide="folder" class="w-3.5 h-3.5 text-zen-muted"></i> Map
+          </button>
+          <div class="h-px bg-zen-border mx-2 my-0.5"></div>
+          <button onclick="triggerAISplit()" class="w-full text-left px-3 py-2 hover:bg-zen-hover text-zen-accent text-xs flex items-center gap-2 transition-colors">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> AI Auto-Split
+          </button>
+          <input type="file" id="ai-split-upload" accept=".txt,.pdf" class="hidden" onchange="handleAISplitImport(event)">
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="relative">
+        <i data-lucide="search" class="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-zen-muted pointer-events-none"></i>
+        <input type="text" placeholder="Zoeken..." oninput="filterTree(this.value)"
+               class="w-full bg-zen-bg border border-zen-border rounded-md pl-6 pr-2 py-1.5 text-xs text-zen-text placeholder-zen-muted focus:border-zen-accent outline-none transition-colors">
+      </div>
+    </div>
+
+    <!-- Pomodoro mini widget -->
+    <div id="pomo-widget" class="px-3 py-2 border-b border-zen-border bg-zen-bg flex items-center gap-2 cursor-pointer hover:bg-zen-hover transition-colors" onclick="openPomodoroPanel()" title="Pomodoro timer">
+      <div class="relative flex-shrink-0">
+        <svg width="28" height="28" viewBox="0 0 28 28">
+          <circle cx="14" cy="14" r="11" fill="none" stroke="#2a2d30" stroke-width="3"/>
+          <circle id="pomo-mini-ring" cx="14" cy="14" r="11" fill="none" stroke="#e2b714" stroke-width="3"
+                  stroke-dasharray="69.1" stroke-dashoffset="0"
+                  transform="rotate(-90 14 14)" style="transition:stroke-dashoffset 1s linear"/>
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center">
+          <span id="pomo-dot" class="w-1.5 h-1.5 rounded-full bg-zen-muted"></span>
+        </div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="text-xs font-semibold text-zen-text" id="pomo-mini-time">25:00</div>
+        <div class="text-[10px] text-zen-muted" id="pomo-mini-label">Pomodoro</div>
+      </div>
+      <i data-lucide="timer" class="w-3.5 h-3.5 text-zen-muted flex-shrink-0"></i>
+    </div>
+
+    <!-- Tree -->
+    <div id="tree-container" class="flex-1 overflow-y-auto p-1.5 space-y-0.5"></div>
+
+    <!-- Word goal bar -->
+    <div class="px-3 py-2 border-t border-zen-border bg-zen-bg">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] text-zen-muted">Dagelijks doel</span>
+        <span id="goal-pct" class="text-[10px] text-zen-accent font-semibold">0%</span>
+      </div>
+      <div class="h-1 bg-zen-hover rounded-full overflow-hidden">
+        <div id="goal-bar-inner" class="h-full bg-zen-accent rounded-full" style="width:0%"></div>
+      </div>
+      <div class="flex justify-between mt-1">
+        <span id="goal-words" class="text-[10px] text-zen-muted">0 woorden vandaag</span>
+        <button onclick="openGoalSettings()" class="text-[10px] text-zen-muted hover:text-zen-accent transition-colors"><i data-lucide="pencil" class="w-2.5 h-2.5 inline"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Editor Area -->
+  <div id="main-area" class="flex-1 flex flex-col min-w-0 bg-zen-bg relative overflow-hidden">
+
+    <!-- Navbar -->
+    <div id="navbar-bar" class="flex items-center justify-between px-4 py-2 border-b border-zen-border bg-zen-bg z-10 flex-shrink-0 gap-2 font-sans">
+      <div class="flex items-center gap-1 text-zen-muted">
+        <button onclick="toggleSidebarLeft()" class="p-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all" data-tip="Zijbalk">
+          <i data-lucide="panel-left-close" class="w-4 h-4"></i>
+        </button>
+        <div class="hidden md:flex items-center gap-2 text-xs ml-2">
+          <span id="word-count" class="text-zen-muted">0 woorden</span>
+          <span class="text-zen-border">·</span>
+          <span id="char-count" class="text-zen-muted">0 tekens</span>
+          <span class="text-zen-border">·</span>
+          <span id="read-time" class="text-zen-muted">~0 min</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-0.5">
+        <!-- Focus mode dropdown -->
+        <div class="relative" id="focus-dd-wrap">
+          <button onclick="toggleFocusDD()" class="flex items-center gap-1 px-2 py-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all text-xs" data-tip="Focusmodus">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i><span class="hidden lg:inline">Focus</span>
+          </button>
+          <div id="focus-dd" class="dropdown-menu bg-zen-panel border border-zen-border rounded-lg shadow-xl overflow-hidden right-0 top-full mt-1 w-44">
+            <button onclick="setFocus('zen')" class="w-full text-left px-3 py-2 text-xs hover:bg-zen-hover hover:text-zen-accent flex items-center gap-2 transition-colors">🌙 Zen (donker)</button>
+            <button onclick="setFocus('sepia')" class="w-full text-left px-3 py-2 text-xs hover:bg-zen-hover hover:text-zen-accent flex items-center gap-2 transition-colors">📜 Sepia (papier)</button>
+            <button onclick="setFocus('dark')" class="w-full text-left px-3 py-2 text-xs hover:bg-zen-hover hover:text-zen-accent flex items-center gap-2 transition-colors">⬛ Pure dark</button>
+            <div class="h-px bg-zen-border mx-2"></div>
+            <button onclick="exitFocus()" class="w-full text-left px-3 py-2 text-xs hover:bg-zen-hover text-zen-muted flex items-center gap-2 transition-colors">✕ Focusmodus uit</button>
+          </div>
+        </div>
+
+        <button onclick="toggleToolbar()" class="flex items-center gap-1 px-2 py-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all text-xs" data-tip="Opmaak">
+          <i data-lucide="palette" class="w-3.5 h-3.5"></i><span class="hidden lg:inline">Tools</span>
+        </button>
+        <button onclick="toggleTypewriterMode()" id="tw-btn" class="flex items-center gap-1 px-2 py-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all text-xs" data-tip="Typemachine-modus">
+          <i data-lucide="align-center" class="w-3.5 h-3.5"></i><span class="hidden lg:inline">Typer</span>
+        </button>
+
+        <div class="w-px h-4 bg-zen-border mx-1"></div>
+
+        <button onclick="insertInlineSummary()" class="flex items-center gap-1 px-2 py-1.5 text-zen-accent hover:bg-zen-accent/15 rounded-md transition-all text-xs border border-zen-accent/20" data-tip="AI samenvatting">
+          <i data-lucide="zap" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Samenvatting</span>
+        </button>
+        <button onclick="openFindModal()" class="p-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all" data-tip="Zoeken (Ctrl+F)">
+          <i data-lucide="search" class="w-4 h-4"></i>
+        </button>
+        <button onclick="openVersionHistory()" class="p-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all" data-tip="Versiegeschiedenis">
+          <i data-lucide="history" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Export -->
+        <div class="relative" id="exp-wrap">
+          <button onclick="toggleExpDD()" class="p-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all" data-tip="Exporteren">
+            <i data-lucide="download" class="w-4 h-4"></i>
+          </button>
+          <div id="exp-dd" class="dropdown-menu bg-zen-panel border border-zen-border rounded-lg shadow-xl overflow-hidden right-0 top-full mt-1 w-40">
+            <button onclick="downloadDocument('txt');closeExpDD()" class="w-full text-left px-3 py-2 text-xs hover:bg-zen-hover hover:text-zen-accent flex items-center gap-2 transition-colors"><i data-lucide="file-text" class="w-3 h-3"></i> .TXT</button>
+            <button onclick="downloadDocument('html');closeExpDD()" class="w-full text-left px-3 py-2 text-xs hover:bg-zen-hover hover:text-zen-accent flex items-center gap-2 transition-colors"><i data-lucide="code" class="w-3 h-3"></i> .HTML</button>
+            <button onclick="downloadDocument('md');closeExpDD()" class="w-full text-left px-3 py-2 text-xs hover:bg-zen-hover hover:text-zen-accent flex items-center gap-2 transition-colors"><i data-lucide="hash" class="w-3 h-3"></i> .MD (Markdown)</button>
+          </div>
+        </div>
+
+        <input type="file" id="file-upload" accept=".txt,.pdf,.md" class="hidden" onchange="handleFileUpload(event)">
+        <button onclick="document.getElementById('file-upload').click()" class="p-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all" data-tip="Importeren">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+        </button>
+        <button onclick="toggleTypingSounds()" id="snd-btn" class="p-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all" data-tip="Typgeluiden">
+          <i data-lucide="volume-x" class="w-4 h-4"></i>
+        </button>
+
+        <div class="w-px h-4 bg-zen-border mx-1"></div>
+
+        <button onclick="toggleSidebarRight()" id="ai-toggle-btn" class="p-1.5 hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all" data-tip="AI Copilot">
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Formatting Toolbar -->
+    <div id="toolbar-bar" class="hidden flex-shrink-0 bg-zen-panel border-b border-zen-border px-3 py-1.5 flex flex-wrap items-center gap-1.5 z-10 font-sans">
+      <!-- Headings -->
+      <div class="flex gap-0.5 bg-zen-bg border border-zen-border rounded-md p-0.5">
+        <button onclick="formatText('formatBlock','h1')" class="px-2 py-1 hover:bg-zen-hover hover:text-zen-accent rounded text-xs font-bold transition-colors" title="H1">H1</button>
+        <button onclick="formatText('formatBlock','h2')" class="px-2 py-1 hover:bg-zen-hover hover:text-zen-accent rounded text-xs font-semibold transition-colors" title="H2">H2</button>
+        <button onclick="formatText('formatBlock','h3')" class="px-2 py-1 hover:bg-zen-hover hover:text-zen-accent rounded text-xs transition-colors" title="H3">H3</button>
+        <button onclick="formatText('formatBlock','p')" class="px-2 py-1 hover:bg-zen-hover hover:text-zen-accent rounded text-xs transition-colors" title="Alinea">¶</button>
+        <button onclick="formatText('formatBlock','blockquote')" class="px-2 py-1 hover:bg-zen-hover hover:text-zen-accent rounded text-xs transition-colors" title="Citaat">❝</button>
+      </div>
+      <!-- Style -->
+      <div class="flex gap-0.5 bg-zen-bg border border-zen-border rounded-md p-0.5">
+        <button onclick="formatText('bold')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Vet"><i data-lucide="bold" class="w-3 h-3"></i></button>
+        <button onclick="formatText('italic')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Cursief"><i data-lucide="italic" class="w-3 h-3"></i></button>
+        <button onclick="formatText('underline')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Onderstrepen"><i data-lucide="underline" class="w-3 h-3"></i></button>
+        <button onclick="formatText('strikeThrough')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Doorhalen"><i data-lucide="strikethrough" class="w-3 h-3"></i></button>
+      </div>
+      <!-- Highlight -->
+      <div class="flex items-center gap-1.5 bg-zen-bg border border-zen-border rounded-md px-2 py-0.5">
+        <span class="text-[10px] text-zen-muted">Markeer:</span>
+        <button onclick="applyHL('#fde047')" class="hl-sw" style="background:#fde047" title="Geel"></button>
+        <button onclick="applyHL('#86efac')" class="hl-sw" style="background:#86efac" title="Groen"></button>
+        <button onclick="applyHL('#93c5fd')" class="hl-sw" style="background:#93c5fd" title="Blauw"></button>
+        <button onclick="applyHL('#f9a8d4')" class="hl-sw" style="background:#f9a8d4" title="Roze"></button>
+        <button onclick="applyHL('#fdba74')" class="hl-sw" style="background:#fdba74" title="Oranje"></button>
+        <label class="hl-sw flex items-center justify-center" style="background:#2e3134" title="Eigen kleur">
+          <i data-lucide="plus" class="w-2 h-2 text-zen-muted pointer-events-none"></i>
+          <input type="color" class="absolute opacity-0 w-0 h-0" onchange="applyHL(this.value)">
+        </label>
+        <button onclick="removeHL()" class="text-zen-muted hover:text-red-400 transition-colors text-[10px]" title="Markering weg">✕</button>
+      </div>
+      <!-- Text color -->
+      <label class="flex items-center gap-1 bg-zen-bg border border-zen-border rounded-md px-2 py-1 cursor-pointer hover:border-zen-accent transition-colors" title="Tekstkleur">
+        <i data-lucide="type" class="w-3 h-3 text-zen-muted"></i>
+        <input type="color" value="#e2b714" onchange="formatText('foreColor',this.value)" class="w-4 h-4 p-0 border-0 bg-transparent cursor-pointer">
+      </label>
+      <!-- Lists & misc -->
+      <div class="flex gap-0.5 bg-zen-bg border border-zen-border rounded-md p-0.5">
+        <button onclick="formatText('insertUnorderedList')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Lijst"><i data-lucide="list" class="w-3 h-3"></i></button>
+        <button onclick="formatText('insertOrderedList')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Genummerd"><i data-lucide="list-ordered" class="w-3 h-3"></i></button>
+        <button onclick="insertHR()" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Scheidingslijn">—</button>
+        <button onclick="insertLink()" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Link"><i data-lucide="link" class="w-3 h-3"></i></button>
+        <button onclick="insertImageFromURL()" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Afbeelding via URL"><i data-lucide="image" class="w-3 h-3"></i></button>
+        <button onclick="insertTable()" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Tabel invoegen"><i data-lucide="table" class="w-3 h-3"></i></button>
+      </div>
+      <!-- Undo/redo -->
+      <div class="flex gap-0.5 bg-zen-bg border border-zen-border rounded-md p-0.5">
+        <button onclick="document.execCommand('undo')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Ongedaan (Ctrl+Z)"><i data-lucide="undo-2" class="w-3 h-3"></i></button>
+        <button onclick="document.execCommand('redo')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Opnieuw"><i data-lucide="redo-2" class="w-3 h-3"></i></button>
+        <button onclick="formatText('removeFormat')" class="p-1.5 hover:bg-zen-hover hover:text-zen-accent rounded transition-colors" title="Opmaak wissen"><i data-lucide="eraser" class="w-3 h-3"></i></button>
+      </div>
+      <!-- Font -->
+      <select onchange="setEditorFont(this.value)" id="font-select" class="bg-zen-bg border border-zen-border rounded-md text-xs px-2 py-1.5 text-zen-text outline-none focus:border-zen-accent transition-colors">
+        <option value="mono">Mono</option>
+        <option value="sans">Sans</option>
+        <option value="serif">Serif</option>
+      </select>
+      <!-- Font size -->
+      <select onchange="setFontSize(this.value)" class="bg-zen-bg border border-zen-border rounded-md text-xs px-2 py-1.5 text-zen-text outline-none focus:border-zen-accent transition-colors">
+        <option value="3">Normaal</option>
+        <option value="1">Klein</option>
+        <option value="4">Groot</option>
+        <option value="5">Groter</option>
+      </select>
+    </div>
+
+    <!-- Cursor line + Editor -->
+    <div id="editor-container" class="flex-1 flex justify-center pb-24 overflow-y-auto cursor-text relative pt-8" onclick="focusEditor(event)">
+      <div id="cursor-line"></div>
+
+      <!-- Focus exit button -->
+      <button id="exit-focus-btn" onclick="exitFocus()"
+              class="fixed top-4 right-4 z-50 hidden bg-zen-panel/80 backdrop-blur-sm border border-zen-border text-zen-muted hover:text-red-400 px-3 py-1.5 rounded-full text-xs flex items-center gap-1.5 transition-all shadow-lg">
+        <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i> Verlaat focus
+      </button>
+
+      <!-- Breadcrumb -->
+      <div id="editor-breadcrumb" class="absolute top-2.5 left-6 text-zen-muted text-[10px] flex items-center gap-1 opacity-40 font-sans tracking-wide z-10"></div>
+
+      <!-- Page tags -->
+      <div id="page-tags-bar" class="absolute top-2.5 right-6 flex items-center gap-1.5 z-10 hidden">
+        <div id="page-tags-list" class="flex gap-1"></div>
+        <button onclick="addTag()" class="text-zen-muted hover:text-zen-accent transition-colors opacity-40 hover:opacity-100" title="Tag toevoegen">
+          <i data-lucide="tag" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <div id="editor"
+           data-placeholder="Begin met typen... (Ctrl+K voor commando's)"
+           class="w-full max-w-3xl bg-transparent outline-none px-10 py-4 text-[1.05rem] text-zen-text relative z-10"
+           style="line-height:1.9;min-height:100%;font-family:'Fira Code',monospace"
+           spellcheck="false" contenteditable="true"
+           oninput="handleEditorInput()" onkeydown="handleKeydown(event)" onkeyup="updateCursorLine()"></div>
+    </div>
+  </div>
+
+  <!-- Right AI Sidebar -->
+  <div id="ai-sidebar" class="w-80 bg-zen-panel border-l border-zen-border flex-col transition-all duration-250 hidden font-sans" style="min-width:300px;max-width:340px">
+    <div class="px-4 py-2.5 border-b border-zen-border flex items-center justify-between">
+      <div class="flex items-center gap-2 text-zen-accent">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        <span class="font-semibold text-sm">AI Copilot</span>
+      </div>
+      <div class="flex gap-1">
+        <button onclick="clearChat()" class="p-1 text-zen-muted hover:text-zen-text rounded transition-colors" title="Wis chat">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="toggleSidebarRight()" class="p-1 text-zen-muted hover:text-zen-text rounded transition-colors">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- API key warning in sidebar -->
+    <div id="api-warn-sidebar" class="hidden px-3 pt-3">
+      <div class="bg-zen-accent/10 border border-zen-accent/30 rounded-lg px-3 py-2.5 text-xs text-zen-text flex gap-2 items-start">
+        <i data-lucide="key" class="w-3.5 h-3.5 text-zen-accent flex-shrink-0 mt-0.5"></i>
+        <div>
+          <p class="font-semibold text-zen-accent mb-1">API-sleutel vereist</p>
+          <p class="text-zen-muted mb-2">Voer je Gemini API-sleutel in om de AI-functies te gebruiken.</p>
+          <button onclick="openApiKeyModal()" class="bg-zen-accent text-zen-bg px-2.5 py-1 rounded-md font-semibold text-[11px] hover:opacity-90 transition">Sleutel instellen</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="chat-history" class="flex-1 overflow-y-auto p-3 space-y-3 text-sm">
+      <div class="flex flex-col items-start">
+        <div class="max-w-[90%] p-3 rounded-xl bg-zen-bg text-zen-text border border-zen-border text-xs leading-relaxed">
+          Hallo! Ik ben je AI-assistent. Selecteer tekst in de editor en vraag me ernaar, of gebruik de snelknoppen hieronder.
+        </div>
+      </div>
+    </div>
+
+    <div id="thinking-indicator" class="hidden px-3 pb-1">
+      <div class="p-3 rounded-xl bg-zen-bg border border-zen-border flex items-center gap-2 text-xs text-zen-muted">
+        <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin text-zen-accent"></i> Bezig met denken...
+      </div>
+    </div>
+
+    <div class="p-3 border-t border-zen-border space-y-2">
+      <div id="custom-prompts-container" class="flex flex-wrap gap-1.5"></div>
+      <div class="flex items-center bg-zen-bg rounded-lg border border-zen-border focus-within:border-zen-accent transition-colors">
+        <input type="text" id="chat-input" placeholder="Stel een vraag..."
+               class="flex-1 bg-transparent outline-none px-3 py-2 text-xs text-zen-text font-sans"
+               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();handleAIQuery()}">
+        <button id="send-btn" onclick="handleAIQuery()" class="px-2.5 py-2 text-zen-muted hover:text-zen-accent transition-colors">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODALS ========== -->
+
+<!-- API Key Modal -->
+<div id="api-modal" class="fixed inset-0 bg-black/80 z-[80] hidden backdrop-blur-md flex items-center justify-center modal-bg font-sans">
+  <div class="modal-box bg-zen-panel border border-zen-border rounded-2xl shadow-2xl w-[460px] max-w-[95%] p-6">
+    <div class="flex items-center gap-3 mb-5">
+      <div class="w-10 h-10 bg-zen-accent/15 border border-zen-accent/30 rounded-xl flex items-center justify-center flex-shrink-0">
+        <i data-lucide="key" class="w-5 h-5 text-zen-accent"></i>
+      </div>
+      <div>
+        <h2 class="font-bold text-zen-text text-sm">Gemini API-sleutel</h2>
+        <p class="text-zen-muted text-xs mt-0.5">Vereist voor AI-functies</p>
+      </div>
+    </div>
+    <div class="bg-zen-bg border border-zen-border rounded-lg p-3 mb-4 text-xs text-zen-muted leading-relaxed">
+      <p class="mb-2">Je sleutel wordt <strong class="text-zen-text">lokaal opgeslagen</strong> in je browser en nooit gedeeld.</p>
+      <p>Haal een gratis sleutel op via <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-zen-accent underline hover:opacity-80">Google AI Studio</a>.</p>
+    </div>
+    <div class="relative mb-4">
+      <input id="api-key-input" type="password" placeholder="AIza..."
+             class="w-full bg-zen-bg border border-zen-border rounded-lg px-3 py-2.5 text-zen-text text-sm outline-none focus:border-zen-accent transition-colors pr-10"
+             onkeydown="if(event.key==='Enter')saveApiKey()">
+      <button onclick="toggleApiKeyVisibility()" class="absolute right-2 top-1/2 -translate-y-1/2 text-zen-muted hover:text-zen-text transition-colors p-1">
+        <i data-lucide="eye" class="w-4 h-4" id="api-eye"></i>
+      </button>
+    </div>
+    <div id="api-key-status" class="hidden mb-3 text-xs px-3 py-2 rounded-lg"></div>
+    <div class="flex gap-2.5">
+      <button onclick="closeApiKeyModal()" class="flex-1 py-2.5 border border-zen-border rounded-lg text-zen-muted hover:text-zen-text hover:border-zen-muted transition-colors text-sm">Annuleer</button>
+      <button onclick="saveApiKey()" class="flex-1 py-2.5 bg-zen-accent text-zen-bg font-bold rounded-lg hover:opacity-90 transition-opacity text-sm flex items-center justify-center gap-2">
+        <i data-lucide="check" class="w-4 h-4"></i> Opslaan
+      </button>
+    </div>
+    <button onclick="clearApiKey()" class="w-full mt-2 py-1.5 text-xs text-zen-muted hover:text-red-400 transition-colors">Sleutel verwijderen</button>
+  </div>
+</div>
+
+<!-- Name Modal -->
+<div id="name-modal" class="fixed inset-0 bg-black/75 z-[80] hidden backdrop-blur-sm flex items-center justify-center modal-bg font-sans">
+  <div class="modal-box bg-zen-panel border border-zen-border rounded-xl shadow-2xl w-[380px] max-w-[95%] p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h3 id="name-modal-title" class="font-bold text-sm text-zen-text"></h3>
+      <button onclick="closeNameModal()" class="p-1 text-zen-muted hover:text-zen-text rounded transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <input id="name-modal-input" type="text" class="w-full bg-zen-bg border border-zen-border rounded-lg px-3 py-2.5 text-sm text-zen-text outline-none focus:border-zen-accent transition-colors mb-4"
+           onkeydown="if(event.key==='Enter')confirmNameModal()">
+    <div class="flex gap-2">
+      <button onclick="closeNameModal()" class="flex-1 py-2 border border-zen-border rounded-lg text-zen-muted hover:text-zen-text text-sm transition-colors">Annuleer</button>
+      <button id="name-confirm-btn" onclick="confirmNameModal()" class="flex-1 py-2 bg-zen-accent text-zen-bg font-bold rounded-lg hover:opacity-90 text-sm transition-opacity">Aanmaken</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div id="confirm-modal" class="fixed inset-0 bg-black/75 z-[80] hidden backdrop-blur-sm flex items-center justify-center modal-bg font-sans">
+  <div class="modal-box bg-zen-panel border border-zen-border rounded-xl shadow-2xl w-[340px] max-w-[95%] p-5">
+    <div class="flex gap-3 mb-4">
+      <div class="w-9 h-9 bg-red-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
+        <i data-lucide="alert-triangle" class="w-4 h-4 text-red-400"></i>
+      </div>
+      <div>
+        <p class="font-semibold text-sm text-zen-text mb-1">Bevestig verwijdering</p>
+        <p id="confirm-msg" class="text-xs text-zen-muted leading-relaxed"></p>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="closeConfirm()" class="flex-1 py-2 border border-zen-border rounded-lg text-zen-muted hover:text-zen-text text-sm transition-colors">Annuleer</button>
+      <button id="confirm-ok" class="flex-1 py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 text-sm transition-colors">Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Find & Replace Modal -->
+<div id="find-modal" class="fixed inset-0 bg-black/60 z-[80] hidden backdrop-blur-sm flex items-start justify-center pt-24 modal-bg font-sans">
+  <div class="modal-box bg-zen-panel border border-zen-border rounded-xl shadow-2xl w-[420px] max-w-[95%] p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-sm text-zen-text flex items-center gap-2"><i data-lucide="search" class="w-4 h-4 text-zen-accent"></i> Zoeken & Vervangen</h3>
+      <button onclick="closeFindModal()" class="p-1 text-zen-muted hover:text-zen-text rounded"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <div class="space-y-2 mb-4">
+      <input id="find-input" type="text" placeholder="Zoeken..."
+             class="w-full bg-zen-bg border border-zen-border rounded-lg px-3 py-2 text-sm text-zen-text outline-none focus:border-zen-accent transition-colors">
+      <input id="replace-input" type="text" placeholder="Vervangen door..."
+             class="w-full bg-zen-bg border border-zen-border rounded-lg px-3 py-2 text-sm text-zen-text outline-none focus:border-zen-accent transition-colors">
+      <p id="find-msg" class="text-xs text-zen-accent hidden"></p>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="doFind()" class="flex-1 py-2 border border-zen-border rounded-lg text-xs hover:text-zen-accent hover:border-zen-accent transition-all flex items-center justify-center gap-1.5"><i data-lucide="search" class="w-3 h-3"></i> Zoek</button>
+      <button onclick="doReplace()" class="flex-1 py-2 border border-zen-border rounded-lg text-xs hover:text-zen-accent hover:border-zen-accent transition-all">Vervang</button>
+      <button onclick="doReplaceAll()" class="flex-1 py-2 bg-zen-accent text-zen-bg font-bold rounded-lg text-xs hover:opacity-90 transition-opacity">Alles</button>
+    </div>
+  </div>
+</div>
+
+<!-- Version History Modal -->
+<div id="version-modal" class="fixed inset-0 bg-black/75 z-[80] hidden backdrop-blur-sm flex items-center justify-center modal-bg font-sans">
+  <div class="modal-box bg-zen-panel border border-zen-border rounded-xl shadow-2xl w-[440px] max-w-[95%] max-h-[80vh] flex flex-col p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-sm text-zen-text flex items-center gap-2"><i data-lucide="history" class="w-4 h-4 text-zen-accent"></i> Versiegeschiedenis</h3>
+      <button onclick="closeVersionModal()" class="p-1 text-zen-muted hover:text-zen-text rounded"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+    <p class="text-xs text-zen-muted mb-3">De laatste 10 versies van dit document. Klik om te herstellen.</p>
+    <div id="version-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1"></div>
+  </div>
+</div>
+
+<!-- Pomodoro Panel Modal -->
+<div id="pomo-modal" class="fixed inset-0 bg-black/75 z-[80] hidden backdrop-blur-sm flex items-center justify-center modal-bg font-sans">
+  <div class="modal-box bg-zen-panel border border-zen-border rounded-2xl shadow-2xl w-[340px] max-w-[95%] p-6">
+    <div class="flex justify-between items-center mb-5">
+      <h3 class="font-bold text-sm text-zen-text flex items-center gap-2"><i data-lucide="timer" class="w-4 h-4 text-zen-accent"></i> Pomodoro Timer</h3>
+      <button onclick="closePomodoroPanel()" class="p-1 text-zen-muted hover:text-zen-text rounded"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+
+    <!-- Big ring -->
+    <div class="flex justify-center mb-5">
+      <div class="relative w-40 h-40">
+        <svg viewBox="0 0 140 140" class="w-full h-full">
+          <circle cx="70" cy="70" r="60" fill="none" stroke="#2a2d30" stroke-width="8"/>
+          <circle id="pomo-big-ring" cx="70" cy="70" r="60" fill="none" stroke="#e2b714" stroke-width="8"
+                  stroke-dasharray="377" stroke-dashoffset="0"
+                  stroke-linecap="round" transform="rotate(-90 70 70)" style="transition:stroke-dashoffset 1s linear"/>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span id="pomo-display" class="text-3xl font-bold text-zen-text font-mono">25:00</span>
+          <span id="pomo-phase-label" class="text-xs text-zen-muted mt-0.5">Focus</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode tabs -->
+    <div class="flex gap-1 mb-4 bg-zen-bg p-1 rounded-lg">
+      <button onclick="setPomoMode('focus',25)" id="pomo-tab-focus" class="flex-1 py-1.5 text-xs rounded-md transition-all bg-zen-accent text-zen-bg font-semibold">Focus 25m</button>
+      <button onclick="setPomoMode('short',5)" id="pomo-tab-short" class="flex-1 py-1.5 text-xs rounded-md transition-all text-zen-muted hover:text-zen-text">Pauze 5m</button>
+      <button onclick="setPomoMode('long',15)" id="pomo-tab-long" class="flex-1 py-1.5 text-xs rounded-md transition-all text-zen-muted hover:text-zen-text">Lang 15m</button>
+    </div>
+
+    <!-- Controls -->
+    <div class="flex gap-2 mb-4">
+      <button onclick="togglePomodoro()" id="pomo-start-btn" class="flex-1 py-2.5 bg-zen-accent text-zen-bg font-bold rounded-xl hover:opacity-90 text-sm transition-all flex items-center justify-center gap-2">
+        <i data-lucide="play" class="w-4 h-4"></i> Start
+      </button>
+      <button onclick="resetPomodoro()" class="p-2.5 bg-zen-bg border border-zen-border rounded-xl text-zen-muted hover:text-zen-text transition-all" title="Reset">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="bg-zen-bg border border-zen-border rounded-lg px-3 py-2 flex justify-between text-xs text-zen-muted">
+      <span>Sessies vandaag: <strong class="text-zen-accent" id="pomo-count">0</strong></span>
+      <span>Totaal: <strong class="text-zen-text" id="pomo-total-time">0 min</strong></span>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="fixed inset-0 bg-black/75 z-[80] hidden backdrop-blur-sm flex items-center justify-center modal-bg font-sans">
+  <div class="modal-box bg-zen-panel border border-zen-border rounded-2xl shadow-2xl w-[540px] max-w-[96%] max-h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center px-6 py-4 border-b border-zen-border">
+      <h2 class="font-bold text-zen-text flex items-center gap-2 text-sm"><i data-lucide="settings" class="w-4 h-4 text-zen-accent"></i> Instellingen</h2>
+      <button onclick="toggleSettings()" class="p-1 text-zen-muted hover:text-zen-text rounded transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+    </div>
+
+    <!-- Settings tabs -->
+    <div class="flex gap-1 px-6 py-2 border-b border-zen-border bg-zen-bg">
+      <button class="stab active" onclick="switchSettingsTab('ai',this)">🤖 AI</button>
+      <button class="stab" onclick="switchSettingsTab('editor',this)">✏️ Editor</button>
+      <button class="stab" onclick="switchSettingsTab('prompts',this)">⚡ Knoppen</button>
+      <button class="stab" onclick="switchSettingsTab('keys',this)">⌨️ Sneltoetsen</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+
+      <!-- AI tab -->
+      <div id="stab-ai" class="stab-content active space-y-4">
+        <!-- API Key -->
+        <div>
+          <h3 class="text-xs font-semibold text-zen-accent mb-2 uppercase tracking-wider">Gemini API-sleutel</h3>
+          <div class="flex gap-2">
+            <div class="flex-1 relative">
+              <input id="settings-api-key" type="password" placeholder="AIza... (versleuteld opgeslagen)"
+                     class="w-full bg-zen-bg border border-zen-border rounded-lg px-3 py-2 text-sm text-zen-text outline-none focus:border-zen-accent transition-colors pr-9">
+              <button onclick="toggleSettingsKeyVis()" class="absolute right-2 top-1/2 -translate-y-1/2 text-zen-muted hover:text-zen-text p-1 transition-colors">
+                <i data-lucide="eye" class="w-3.5 h-3.5" id="settings-eye"></i>
+              </button>
+            </div>
+            <button onclick="saveSettingsApiKey()" class="px-3 py-2 bg-zen-accent text-zen-bg font-semibold text-xs rounded-lg hover:opacity-90 transition-opacity">Opslaan</button>
+          </div>
+          <p id="settings-api-status" class="text-xs mt-1.5 hidden"></p>
+        </div>
+
+        <div class="h-px bg-zen-border"></div>
+
+        <div>
+          <h3 class="text-xs font-semibold text-zen-accent mb-2 uppercase tracking-wider">AI Persona</h3>
+          <select id="ai-persona" class="w-full bg-zen-bg border border-zen-border rounded-lg p-2.5 text-sm text-zen-text outline-none focus:border-zen-accent transition-colors">
+            <option value="helpful">🤝 Behulpzame assistent</option>
+            <option value="creative">✍️ Creatieve schrijver</option>
+            <option value="strict">📝 Strenge editor</option>
+            <option value="teacher">🎓 Leraar / uitlegger</option>
+            <option value="coach">💪 Coach / motivator</option>
+            <option value="researcher">🔬 Onderzoeker / analist</option>
+          </select>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-semibold text-zen-accent mb-2 uppercase tracking-wider">Antwoordtaal</h3>
+          <select id="ai-language" class="w-full bg-zen-bg border border-zen-border rounded-lg p-2.5 text-sm text-zen-text outline-none focus:border-zen-accent transition-colors">
+            <option value="auto">🌐 Automatisch (zelfde als document)</option>
+            <option value="nl">🇧🇪 Nederlands</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="fr">🇫🇷 Français</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="es">🇪🇸 Español</option>
+            <option value="it">🇮🇹 Italiano</option>
+            <option value="pt">🇵🇹 Português</option>
+            <option value="ja">🇯🇵 日本語</option>
+            <option value="zh">🇨🇳 中文</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Editor tab -->
+      <div id="stab-editor" class="stab-content space-y-3">
+        <h3 class="text-xs font-semibold text-zen-accent mb-2 uppercase tracking-wider">Editor-voorkeuren</h3>
+
+        <div class="space-y-2.5">
+          <!-- Typing sounds -->
+          <div class="flex items-center justify-between bg-zen-bg border border-zen-border rounded-lg px-3 py-2.5">
+            <div>
+              <p class="text-sm text-zen-text font-medium">Typgeluiden</p>
+              <p class="text-xs text-zen-muted">Mechanisch klikgeluid bij elke toetsaanslag</p>
+            </div>
+            <div id="sound-toggle" onclick="toggleTypingSounds()" class="tog-track"><div class="tog-thumb"></div></div>
+          </div>
+
+          <!-- Typewriter mode -->
+          <div class="flex items-center justify-between bg-zen-bg border border-zen-border rounded-lg px-3 py-2.5">
+            <div>
+              <p class="text-sm text-zen-text font-medium">Typemachine-modus</p>
+              <p class="text-xs text-zen-muted">Huidige regel gemarkeerd tijdens typen</p>
+            </div>
+            <div id="tw-toggle" onclick="toggleTypewriterMode()" class="tog-track"><div class="tog-thumb"></div></div>
+          </div>
+
+          <!-- Spellcheck -->
+          <div class="flex items-center justify-between bg-zen-bg border border-zen-border rounded-lg px-3 py-2.5">
+            <div>
+              <p class="text-sm text-zen-text font-medium">Spellingcontrole</p>
+              <p class="text-xs text-zen-muted">Browser spellingcontrole inschakelen</p>
+            </div>
+            <div id="spell-toggle" onclick="toggleSpellcheck()" class="tog-track"><div class="tog-thumb"></div></div>
+          </div>
+        </div>
+
+        <div class="h-px bg-zen-border"></div>
+
+        <div>
+          <h3 class="text-xs font-semibold text-zen-accent mb-2 uppercase tracking-wider">Dagelijks schrijfdoel</h3>
+          <div class="flex items-center gap-2">
+            <input id="goal-input" type="number" min="50" max="10000" step="50" value="500"
+                   class="flex-1 bg-zen-bg border border-zen-border rounded-lg px-3 py-2 text-sm text-zen-text outline-none focus:border-zen-accent transition-colors">
+            <span class="text-sm text-zen-muted">woorden/dag</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prompts tab -->
+      <div id="stab-prompts" class="stab-content space-y-3">
+        <div class="flex justify-between items-center">
+          <h3 class="text-xs font-semibold text-zen-accent uppercase tracking-wider">Aangepaste AI-knoppen</h3>
+          <button onclick="addNewPromptEntry()" class="text-xs bg-zen-bg border border-zen-border px-2.5 py-1.5 rounded-lg hover:text-zen-accent hover:border-zen-accent transition-all flex items-center gap-1">
+            <i data-lucide="plus" class="w-3 h-3"></i> Toevoegen
+          </button>
+        </div>
+        <p class="text-xs text-zen-muted">Maak snelknoppen voor de AI-assistent.</p>
+        <div id="prompts-list" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- Shortcuts tab -->
+      <div id="stab-keys" class="stab-content">
+        <h3 class="text-xs font-semibold text-zen-accent mb-3 uppercase tracking-wider">Sneltoetsen</h3>
+        <div class="space-y-1.5 text-xs font-sans">
+          <div class="flex justify-between items-center py-1.5 border-b border-zen-border/50">
+            <span class="text-zen-muted">Command Palette</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + K</kbd>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-zen-border/50">
+            <span class="text-zen-muted">Zoeken & vervangen</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + F</kbd>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-zen-border/50">
+            <span class="text-zen-muted">Opslaan (handmatig)</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + S</kbd>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-zen-border/50">
+            <span class="text-zen-muted">Vet</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + B</kbd>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-zen-border/50">
+            <span class="text-zen-muted">Cursief</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + I</kbd>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-zen-border/50">
+            <span class="text-zen-muted">Toolbar tonen/verbergen</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + Shift + T</kbd>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-zen-border/50">
+            <span class="text-zen-muted">AI Copilot tonen</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + Shift + A</kbd>
+          </div>
+          <div class="flex justify-between items-center py-1.5 border-b border-zen-border/50">
+            <span class="text-zen-muted">Focusmodus</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + Shift + F</kbd>
+          </div>
+          <div class="flex justify-between items-center py-1.5">
+            <span class="text-zen-muted">AI: geselecteerde tekst uitleggen</span>
+            <kbd class="bg-zen-bg border border-zen-border px-2 py-0.5 rounded text-zen-text font-mono">Ctrl + E</kbd>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-zen-border">
+      <button onclick="saveSettings()" class="w-full bg-zen-accent text-zen-bg font-bold py-2.5 rounded-lg hover:opacity-90 transition-opacity text-sm">Instellingen opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Global Loader -->
+<div id="global-loader" class="fixed inset-0 bg-black/85 z-[90] hidden flex-col items-center justify-center backdrop-blur-sm font-sans">
+  <div class="flex flex-col items-center gap-4">
+    <div class="relative w-14 h-14">
+      <svg class="w-full h-full animate-spin" viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#2a2d30" stroke-width="4"/>
+        <circle cx="28" cy="28" r="22" fill="none" stroke="#e2b714" stroke-width="4"
+                stroke-dasharray="138" stroke-dashoffset="100" stroke-linecap="round"/>
+      </svg>
+      <div class="absolute inset-0 flex items-center justify-center">
+        <i data-lucide="sparkles" class="w-5 h-5 text-zen-accent"></i>
+      </div>
+    </div>
+    <div class="text-center">
+      <p class="font-bold text-zen-text mb-1">AI analyseert je document...</p>
+      <p class="text-zen-muted text-sm">Even geduld</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// =================== CONFIG ===================
+const MODEL = 'gemini-2.5-flash-preview-09-2025';
+
+// =================== STATE ===================
+let apiKey = localStorage.getItem('zenai_apikey') || '';
+let aiTone = localStorage.getItem('zenai_tone') || 'helpful';
+let responseLang = localStorage.getItem('zenai_lang') || 'auto';
+let typingSounds = JSON.parse(localStorage.getItem('zenai_sounds') || 'false');
+let typewriterMode = JSON.parse(localStorage.getItem('zenai_typewriter') || 'false');
+let spellcheckOn = JSON.parse(localStorage.getItem('zenai_spell') || 'false');
+let dailyGoal = parseInt(localStorage.getItem('zenai_goal') || '500');
+
+let projects = JSON.parse(localStorage.getItem('zenai_projects') || '[]');
+let currentProjectId = null, currentPageId = null;
+let collapsedFolders = new Set(JSON.parse(localStorage.getItem('zenai_collapsed') || '[]'));
+let customPrompts = JSON.parse(localStorage.getItem('zenai_prompts') || 'null') || [
+  {id:'cp1',label:'Samenvatten',prompt:'Vat de tekst samen in heldere opsommingspunten.'},
+  {id:'cp2',label:'Grammatica',prompt:'Corrigeer alle grammaticafouten en verbeter de leesbaarheid.'},
+  {id:'cp3',label:'Uitbreiden',prompt:'Breid de tekst uit met meer details en voorbeelden.'},
+  {id:'cp4',label:'Herschrijf',prompt:'Herschrijf de tekst met een professionelere toon.'},
+  {id:'cp5',label:'Punten',prompt:'Zet de hoofdpunten op een rij als bullet points.'},
+];
+
+// Pomodoro state
+let pomoSeconds = 25 * 60, pomoTotal = 25 * 60, pomoRunning = false, pomoTimer = null;
+let pomoSessionsToday = parseInt(localStorage.getItem('zenai_pomo_sessions') || '0');
+let pomoTotalMinutes = parseInt(localStorage.getItem('zenai_pomo_minutes') || '0');
+let pomoMode = 'focus';
+
+// Writing goal
+let todayWords = parseInt(localStorage.getItem(`zenai_words_${todayKey()}`) || '0');
+let lastMilestone = 0;
+
+// Versions
+let versionHistory = {};  // pageId -> [{timestamp, content}]
+
+// AI
+let isThinking = false, isSidebarRightOpen = false;
+
+// Name modal callback
+let nameModalCb = null, confirmModalCb = null;
+
+// Audio
+let audioCtx = null;
+
+// Focus mode
+let currentFocusMode = null;
+
+// Command palette
+const COMMANDS = [
+  {id:'new-doc',   label:'Nieuw document',          icon:'file-text', action:()=>openNewPageModal(null),   shortcut:''},
+  {id:'new-folder',label:'Nieuwe map',               icon:'folder',    action:()=>openNewFolderModal(),     shortcut:''},
+  {id:'focus-zen', label:'Focusmodus: Zen',           icon:'eye',       action:()=>setFocus('zen'),          shortcut:''},
+  {id:'focus-sepia',label:'Focusmodus: Sepia',        icon:'eye',       action:()=>setFocus('sepia'),        shortcut:''},
+  {id:'focus-off', label:'Focusmodus uitschakelen',   icon:'eye-off',   action:()=>exitFocus(),              shortcut:''},
+  {id:'find',      label:'Zoeken & vervangen',        icon:'search',    action:()=>openFindModal(),          shortcut:'Ctrl+F'},
+  {id:'summary',   label:'AI samenvatting invoegen',  icon:'zap',       action:()=>insertInlineSummary(),    shortcut:''},
+  {id:'settings',  label:'Instellingen',              icon:'settings',  action:()=>toggleSettings(),         shortcut:''},
+  {id:'apikey',    label:'API-sleutel instellen',     icon:'key',       action:()=>openApiKeyModal(),        shortcut:''},
+  {id:'toolbar',   label:'Toolbar tonen/verbergen',   icon:'palette',   action:()=>toggleToolbar(),          shortcut:'Ctrl+Shift+T'},
+  {id:'pomodoro',  label:'Pomodoro timer',            icon:'timer',     action:()=>openPomodoroPanel(),      shortcut:''},
+  {id:'versions',  label:'Versiegeschiedenis',        icon:'history',   action:()=>openVersionHistory(),     shortcut:''},
+  {id:'export-txt',label:'Exporteer als .TXT',        icon:'download',  action:()=>downloadDocument('txt'),  shortcut:''},
+  {id:'export-html',label:'Exporteer als .HTML',      icon:'download',  action:()=>downloadDocument('html'), shortcut:''},
+  {id:'export-md', label:'Exporteer als .MD',         icon:'download',  action:()=>downloadDocument('md'),   shortcut:''},
+  {id:'ai-copilot',label:'AI Copilot tonen/verbergen',icon:'sparkles',  action:()=>toggleSidebarRight(),    shortcut:'Ctrl+Shift+A'},
+  {id:'home',      label:'Terug naar home',           icon:'home',      action:()=>goHome(),                 shortcut:''},
+  {id:'typewriter',label:'Typemachine-modus',         icon:'align-center',action:()=>toggleTypewriterMode(),shortcut:''},
+  {id:'sounds',    label:'Typgeluiden aan/uit',       icon:'volume-2',  action:()=>toggleTypingSounds(),     shortcut:''},
+  {id:'table',     label:'Tabel invoegen',            icon:'table',     action:()=>insertTable(),            shortcut:''},
+  {id:'hr',        label:'Scheidingslijn invoegen',   icon:'minus',     action:()=>insertHR(),               shortcut:''},
+  {id:'link',      label:'Link invoegen',             icon:'link',      action:()=>insertLink(),             shortcut:''},
+];
+
+const editor = document.getElementById('editor');
+
+// =================== INIT ===================
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+
+function init(){
+  if(!projects.length){
+    projects.push({id:'proj_'+Date.now(),title:'Mijn eerste project',updated:Date.now(),items:[
+      {id:'f1',type:'folder',title:'Notities',parentId:null},
+      {id:'p1',type:'page',title:'Welkomst',parentId:'f1',content:'<h2>Welkom in ZenAI Workspace</h2><p>Begin hier met typen. Gebruik <strong>Ctrl+K</strong> voor de command palette.</p><p>Veel typlezier! ✨</p>',tags:[],versions:[]}
+    ]});
+    saveData();
+  }
+  updateApiUI();
+  renderHome();
+  updateGoalBar(todayWords);
+  updateSoundUI();
+  updateTWUI();
+  updateSpellUI();
+  lucide.createIcons();
+
+  // Global keyboard shortcuts
+  document.addEventListener('keydown', globalKeyHandler);
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', e => {
+    if(!e.target.closest('#ni-container')) closeNI();
+    if(!e.target.closest('#focus-dd-wrap')) document.getElementById('focus-dd')?.classList.remove('open');
+    if(!e.target.closest('#exp-wrap')) document.getElementById('exp-dd')?.classList.remove('open');
+  });
+
+  // Auto-save every 8s
+  setInterval(() => {
+    if(currentProjectId && currentPageId) { saveCurrentContent(); pushVersion(); flashAutosave(); }
+    localStorage.setItem('zenai_projects', JSON.stringify(projects));
+  }, 8000);
+
+  // Pomodoro UI update
+  updatePomoUI();
+  renderCmdList(COMMANDS);
+}
+
+function globalKeyHandler(e){
+  const ctrl = e.ctrlKey || e.metaKey;
+  if(ctrl && e.key === 'k'){ e.preventDefault(); openCommandPalette(); return; }
+  if(ctrl && e.key === 'f' && currentPageId){ e.preventDefault(); openFindModal(); return; }
+  if(ctrl && e.key === 's'){ e.preventDefault(); saveCurrentContent(); flashAutosave(true); return; }
+  if(ctrl && e.shiftKey && e.key === 'T'){ e.preventDefault(); toggleToolbar(); return; }
+  if(ctrl && e.shiftKey && e.key === 'A'){ e.preventDefault(); toggleSidebarRight(); return; }
+  if(ctrl && e.shiftKey && e.key === 'F'){ e.preventDefault(); setFocus('zen'); return; }
+  if(ctrl && e.key === 'e' && currentPageId){
+    e.preventDefault();
+    const sel = window.getSelection()?.toString();
+    if(sel) handleAIQuery(`Leg uit: "${sel}"`);
+  }
+  if(e.key === 'Escape'){
+    if(!document.getElementById('cmd-palette').classList.contains('open')) exitFocus();
+    closeCommandPalette();
+  }
+}
+
+// =================== SAVE ===================
+function saveData(){
+  if(currentProjectId && currentPageId) saveCurrentContent();
+  localStorage.setItem('zenai_projects', JSON.stringify(projects));
+  localStorage.setItem('zenai_prompts', JSON.stringify(customPrompts));
+}
+
+function saveCurrentContent(){
+  if(!currentProjectId || !currentPageId) return;
+  const proj = projects.find(p=>p.id===currentProjectId);
+  const page = proj?.items.find(i=>i.id===currentPageId);
+  if(page){ page.content = editor.innerHTML; proj.updated = Date.now(); }
+}
+
+function pushVersion(){
+  if(!currentPageId) return;
+  if(!versionHistory[currentPageId]) versionHistory[currentPageId]=[];
+  const hist = versionHistory[currentPageId];
+  const html = editor.innerHTML;
+  if(hist.length && hist[hist.length-1].content === html) return;
+  hist.push({ts: Date.now(), content: html, words: countWords(editor.innerText)});
+  if(hist.length > 10) hist.shift();
+}
+
+function flashAutosave(manual=false){
+  const dot = document.getElementById('autosave-dot');
+  if(!dot) return;
+  dot.classList.add('saved');
+  setTimeout(()=>dot.classList.remove('saved'), manual ? 2000 : 1000);
+}
+
+// =================== API KEY ===================
+function updateApiUI(){
+  const haKey = !!apiKey;
+  document.getElementById('api-banner-home')?.classList.toggle('hidden', haKey);
+  document.getElementById('api-warn-sidebar')?.classList.toggle('hidden', haKey);
+  document.getElementById('home-stats')?.classList.toggle('hidden', false);
+}
+
+function openApiKeyModal(){
+  document.getElementById('api-key-input').value = apiKey;
+  document.getElementById('api-key-status').classList.add('hidden');
+  document.getElementById('api-modal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('api-key-input').focus(), 100);
+}
+function closeApiKeyModal(){ document.getElementById('api-modal').classList.add('hidden'); }
+
+function toggleApiKeyVisibility(){
+  const inp = document.getElementById('api-key-input');
+  const eye = document.getElementById('api-eye');
+  if(inp.type==='password'){ inp.type='text'; eye.setAttribute('data-lucide','eye-off'); }
+  else { inp.type='password'; eye.setAttribute('data-lucide','eye'); }
+  lucide.createIcons();
+}
+
+async function saveApiKey(){
+  const val = document.getElementById('api-key-input').value.trim();
+  const status = document.getElementById('api-key-status');
+  if(!val){ status.textContent='Voer een geldige sleutel in.'; status.className='text-xs mt-1.5 px-3 py-2 rounded-lg bg-red-500/15 text-red-400'; status.classList.remove('hidden'); return; }
+  status.textContent='Sleutel controleren...'; status.className='text-xs mt-1.5 px-3 py-2 rounded-lg bg-zen-bg border border-zen-border text-zen-muted'; status.classList.remove('hidden');
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${val}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Hi'}]}]})});
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    apiKey = val;
+    localStorage.setItem('zenai_apikey', val);
+    status.textContent='✓ Sleutel geldig! AI-functies zijn nu beschikbaar.';
+    status.className='text-xs mt-1.5 px-3 py-2 rounded-lg bg-zen-accent/15 text-zen-accent';
+    updateApiUI();
+    setTimeout(closeApiKeyModal, 1500);
+  } catch(err){
+    status.textContent=`✕ Ongeldige sleutel: ${err.message}`;
+    status.className='text-xs mt-1.5 px-3 py-2 rounded-lg bg-red-500/15 text-red-400';
+  }
+}
+
+function clearApiKey(){
+  if(!confirm('API-sleutel verwijderen?')) return;
+  apiKey=''; localStorage.removeItem('zenai_apikey');
+  document.getElementById('api-key-input').value='';
+  updateApiUI(); closeApiKeyModal();
+}
+
+// Settings API key section
+function toggleSettingsKeyVis(){
+  const inp = document.getElementById('settings-api-key');
+  const eye = document.getElementById('settings-eye');
+  if(inp.type==='password'){ inp.type='text'; eye.setAttribute('data-lucide','eye-off'); }
+  else { inp.type='password'; eye.setAttribute('data-lucide','eye'); }
+  lucide.createIcons();
+}
+async function saveSettingsApiKey(){
+  const val = document.getElementById('settings-api-key').value.trim();
+  const status = document.getElementById('settings-api-status');
+  if(!val) return;
+  status.textContent='Controleren...'; status.className='text-xs mt-1.5 text-zen-muted'; status.classList.remove('hidden');
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${val}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Hi'}]}]})});
+    const d = await r.json();
+    if(d.error) throw new Error(d.error.message);
+    apiKey=val; localStorage.setItem('zenai_apikey',val);
+    status.textContent='✓ Sleutel opgeslagen en geldig!'; status.className='text-xs mt-1.5 text-zen-accent';
+    updateApiUI();
+  } catch(e){ status.textContent='✕ '+e.message; status.className='text-xs mt-1.5 text-red-400'; }
+}
+
+// =================== HOME ===================
+function renderHome(){
+  const grid = document.getElementById('projects-grid');
+  grid.innerHTML='';
+
+  // Update stats
+  const totalWords = projects.reduce((s,p)=>s+p.items.filter(i=>i.type==='page').reduce((ws,pg)=>ws+countWords(pg.content||''),0),0);
+  document.getElementById('home-total-words').textContent = `${totalWords.toLocaleString()} totale woorden`;
+
+  if(!projects.length){
+    grid.innerHTML='<div class="col-span-3 flex flex-col items-center py-20 text-zen-muted"><div class="w-16 h-16 bg-zen-card rounded-2xl flex items-center justify-center mb-4 border border-zen-border"><i data-lucide="folder-open" class="w-8 h-8 opacity-30"></i></div><p class="text-sm">Nog geen projecten</p></div>';
+    lucide.createIcons(); return;
+  }
+  projects.sort((a,b)=>b.updated-a.updated).forEach(proj=>{
+    const pages=proj.items.filter(i=>i.type==='page').length;
+    const folders=proj.items.filter(i=>i.type==='folder').length;
+    const words=proj.items.filter(i=>i.type==='page').reduce((s,p)=>s+countWords(p.content||''),0);
+    const card=document.createElement('div');
+    card.className='bg-zen-card border border-zen-border rounded-xl p-4 hover:border-zen-accent/50 transition-all cursor-pointer group relative shadow-sm hover:shadow-lg hover:shadow-black/20';
+    card.innerHTML=`
+      <div onclick="openProject('${proj.id}')" class="block">
+        <div class="flex items-start gap-3 mb-3">
+          <div class="w-9 h-9 bg-zen-accent/15 border border-zen-accent/20 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-zen-accent/25 transition-colors">
+            <i data-lucide="folder" class="w-4 h-4 text-zen-accent"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="font-semibold text-zen-text text-sm truncate group-hover:text-zen-accent transition-colors">${proj.title}</h3>
+            <p class="text-xs text-zen-muted mt-0.5">${pages} doc · ${folders} map · ${words.toLocaleString()} woorden</p>
+          </div>
+        </div>
+        <p class="text-[11px] text-zen-muted/70">${relativeTime(proj.updated)}</p>
+      </div>
+      <div class="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onclick="renameProj(event,'${proj.id}')" class="p-1.5 text-zen-muted hover:text-zen-accent hover:bg-zen-hover rounded-md transition-all"><i data-lucide="pencil" class="w-3 h-3"></i></button>
+        <button onclick="deleteProj(event,'${proj.id}')" class="p-1.5 text-zen-muted hover:text-red-400 hover:bg-zen-hover rounded-md transition-all"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+      </div>`;
+    grid.appendChild(card);
+  });
+  lucide.createIcons();
+}
+
+function relativeTime(ts){
+  const d=Date.now()-ts,m=Math.floor(d/60000),h=Math.floor(d/3600000),days=Math.floor(d/86400000);
+  if(d<60000) return 'Zojuist';
+  if(m<60) return `${m} min geleden`;
+  if(h<24) return `${h} uur geleden`;
+  if(days===1) return 'Gisteren';
+  return new Date(ts).toLocaleDateString('nl-BE',{day:'numeric',month:'short'});
+}
+
+function countWords(text){
+  const t=(text||'').replace(/<[^>]+>/g,' ').trim();
+  return t?t.split(/\s+/).filter(w=>w.length>0).length:0;
+}
+
+function createNewProject(name){
+  projects.push({id:'proj_'+Date.now(),title:name,updated:Date.now(),items:[]});
+  saveData(); renderHome();
+}
+
+function renameProj(e,id){ e.stopPropagation(); const p=projects.find(x=>x.id===id); openNameModal('Project hernoemen',p.title,n=>{p.title=n;p.updated=Date.now();saveData();renderHome();},'Opslaan'); }
+function deleteProj(e,id){ e.stopPropagation(); const p=projects.find(x=>x.id===id); openConfirm(`Verwijder "${p.title}" en al zijn inhoud?`,()=>{projects=projects.filter(x=>x.id!==id);saveData();renderHome();}); }
+
+// =================== PROJECT / NAVIGATION ===================
+function goHome(){ saveData(); currentProjectId=null; currentPageId=null; document.getElementById('home-view').classList.remove('hidden'); document.getElementById('editor-view').classList.add('hidden'); renderHome(); }
+
+function openProject(id){
+  currentProjectId=id;
+  document.getElementById('home-view').classList.add('hidden');
+  document.getElementById('editor-view').classList.remove('hidden');
+  const proj=projects.find(p=>p.id===id);
+  document.getElementById('current-project-title').textContent=proj.title;
+  const fp=proj.items.find(i=>i.type==='page');
+  if(fp) openPage(fp.id); else { editor.innerHTML=''; currentPageId=null; updateStats(); }
+  renderTree();
+  document.getElementById('rename-proj-btn').style.opacity='100';
+}
+
+function renameCurrentProject(){ const p=projects.find(x=>x.id===currentProjectId); openNameModal('Project hernoemen',p.title,n=>{p.title=n;document.getElementById('current-project-title').textContent=n;saveData();},'Opslaan'); }
+
+// =================== TREE ===================
+function renderTree(query=''){
+  const cont=document.getElementById('tree-container');
+  cont.innerHTML='';
+  const proj=projects.find(p=>p.id===currentProjectId);
+  if(!proj) return;
+  const q=query.toLowerCase().trim();
+  if(q){
+    const matches=proj.items.filter(i=>i.type==='page'&&i.title.toLowerCase().includes(q));
+    if(!matches.length) cont.innerHTML='<p class="text-[10px] text-zen-muted text-center py-4 px-2">Geen resultaten</p>';
+    else matches.forEach(p=>cont.appendChild(mkPageEl(p)));
+  } else {
+    proj.items.filter(i=>i.parentId===null).forEach(item=>{
+      cont.appendChild(item.type==='folder'?mkFolderEl(item,proj.items):mkPageEl(item));
+    });
+  }
+  lucide.createIcons();
+}
+
+function filterTree(q){ renderTree(q); }
+
+function mkFolderEl(folder,all){
+  const coll=collapsedFolders.has(folder.id);
+  const div=document.createElement('div');
+  div.id=`f-${folder.id}`;
+  div.innerHTML=`
+    <div class="flex items-center justify-between px-2 py-1.5 rounded hover:bg-zen-hover group cursor-pointer select-none" onclick="toggleFolder('${folder.id}')">
+      <div class="flex items-center gap-1.5 min-w-0 flex-1">
+        <i data-lucide="chevron-right" class="w-3 h-3 text-zen-muted flex-shrink-0 chevron ${coll?'':'open'}"></i>
+        <i data-lucide="folder" class="w-3.5 h-3.5 text-zen-accent flex-shrink-0"></i>
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-zen-muted truncate">${folder.title}</span>
+      </div>
+      <div class="opacity-0 group-hover:opacity-100 flex gap-0.5 flex-shrink-0" onclick="event.stopPropagation()">
+        <button onclick="openNewPageModal('${folder.id}')" class="p-1 text-zen-muted hover:text-zen-accent rounded transition-colors" title="Nieuw doc"><i data-lucide="plus" class="w-2.5 h-2.5"></i></button>
+        <button onclick="renameItem('${folder.id}')" class="p-1 text-zen-muted hover:text-zen-accent rounded transition-colors" title="Hernoemen"><i data-lucide="pencil" class="w-2.5 h-2.5"></i></button>
+        <button onclick="deleteItem('${folder.id}')" class="p-1 text-zen-muted hover:text-red-400 rounded transition-colors" title="Verwijder"><i data-lucide="trash" class="w-2.5 h-2.5"></i></button>
+      </div>
+    </div>
+    <div class="ml-2 pl-2 border-l border-zen-border/40 space-y-0.5 mt-0.5 folder-kids ${coll?'collapsed':''}"></div>`;
+  const kids=div.querySelector('.folder-kids');
+  all.filter(i=>i.parentId===folder.id&&i.type==='page').forEach(p=>kids.appendChild(mkPageEl(p)));
+  return div;
+}
+
+function mkPageEl(page){
+  const act=page.id===currentPageId;
+  const div=document.createElement('div');
+  div.className=`tree-item flex items-center justify-between py-1.5 px-2 rounded cursor-pointer group select-none ${act?'active':'text-zen-muted'}`;
+  div.onclick=()=>openPage(page.id);
+  const tagDots=(page.tags||[]).map(t=>`<span style="background:${tagColor(t)}" class="w-1.5 h-1.5 rounded-full flex-shrink-0"></span>`).join('');
+  div.innerHTML=`
+    <span class="flex items-center gap-1.5 min-w-0 flex-1">
+      <i data-lucide="file-text" class="w-3 h-3 opacity-50 flex-shrink-0"></i>
+      <span class="text-xs truncate">${page.title}</span>
+      ${tagDots}
+    </span>
+    <div class="opacity-0 group-hover:opacity-100 flex gap-0.5 flex-shrink-0 ml-1" onclick="event.stopPropagation()">
+      <button onclick="renameItem('${page.id}')" class="p-0.5 text-zen-muted hover:text-zen-accent rounded transition-colors"><i data-lucide="pencil" class="w-2.5 h-2.5"></i></button>
+      <button onclick="deleteItem('${page.id}')" class="p-0.5 text-zen-muted hover:text-red-400 rounded transition-colors"><i data-lucide="x" class="w-2.5 h-2.5"></i></button>
+    </div>`;
+  return div;
+}
+
+function toggleFolder(id){
+  const el=document.getElementById(`f-${id}`);
+  const kids=el?.querySelector('.folder-kids');
+  const chev=el?.querySelector('.chevron');
+  if(collapsedFolders.has(id)){ collapsedFolders.delete(id); kids?.classList.remove('collapsed'); chev?.classList.add('open'); }
+  else { collapsedFolders.add(id); kids?.classList.add('collapsed'); chev?.classList.remove('open'); }
+  localStorage.setItem('zenai_collapsed', JSON.stringify([...collapsedFolders]));
+}
+
+function openNewFolderModal(){ closeNI(); openNameModal('Nieuwe map','',n=>{ const proj=projects.find(p=>p.id===currentProjectId); proj.items.push({id:'f_'+Date.now(),type:'folder',title:n,parentId:null}); proj.updated=Date.now(); saveData(); renderTree(); }); }
+function openNewPageModal(parentId){ closeNI(); openNameModal('Nieuw document','',n=>{ const proj=projects.find(p=>p.id===currentProjectId); const nid='p_'+Date.now(); proj.items.push({id:nid,type:'page',title:n,parentId,content:'',tags:[],versions:[]}); proj.updated=Date.now(); saveData(); openPage(nid); renderTree(); }); }
+function renameItem(id){ const proj=projects.find(p=>p.id===currentProjectId); const item=proj.items.find(i=>i.id===id); openNameModal('Hernoemen',item.title,n=>{ item.title=n; proj.updated=Date.now(); saveData(); renderTree(); if(id===currentPageId) updateBreadcrumb(); },'Opslaan'); }
+function deleteItem(id){ const proj=projects.find(p=>p.id===currentProjectId); const item=proj.items.find(i=>i.id===id); openConfirm(`Verwijder "${item?.title}"? Dit kan niet ongedaan worden gemaakt.`,()=>{ const del=new Set([id,...proj.items.filter(i=>i.parentId===id).map(i=>i.id)]); proj.items=proj.items.filter(i=>!del.has(i.id)); proj.updated=Date.now(); if(del.has(currentPageId)){currentPageId=null;editor.innerHTML='';updateStats();} saveData(); renderTree(); }); }
+
+// =================== PAGES ===================
+function openPage(id){
+  saveCurrentContent(); pushVersion();
+  currentPageId=id;
+  const proj=projects.find(p=>p.id===currentProjectId);
+  const page=proj?.items.find(i=>i.id===id);
+  if(!page) return;
+  editor.innerHTML=page.content||'';
+  updateBreadcrumb();
+  renderPageTags(page);
+  renderTree(); updateStats();
+  editor.focus();
+}
+
+function updateBreadcrumb(){
+  const proj=projects.find(p=>p.id===currentProjectId);
+  const page=proj?.items.find(i=>i.id===currentPageId);
+  if(!page) return;
+  let bc=`<span>${proj.title}</span>`;
+  if(page.parentId){ const par=proj.items.find(i=>i.id===page.parentId); if(par) bc+=` <span class="opacity-30 mx-0.5">›</span> <span>${par.title}</span>`; }
+  bc+=` <span class="opacity-30 mx-0.5">›</span> <span class="text-zen-accent">${page.title}</span>`;
+  document.getElementById('editor-breadcrumb').innerHTML=bc;
+  lucide.createIcons();
+}
+
+function renderPageTags(page){
+  const bar=document.getElementById('page-tags-bar');
+  const list=document.getElementById('page-tags-list');
+  bar.classList.remove('hidden');
+  list.innerHTML='';
+  (page.tags||[]).forEach(t=>{
+    const span=document.createElement('span');
+    span.style.cssText=`background:${tagColor(t)}20;color:${tagColor(t)};border:1px solid ${tagColor(t)}40;`;
+    span.className='px-1.5 py-0.5 rounded text-[10px] font-medium cursor-pointer';
+    span.textContent=t;
+    span.title='Klik om te verwijderen';
+    span.onclick=()=>removeTag(t);
+    list.appendChild(span);
+  });
+}
+
+const TAG_COLORS=['#e2b714','#4ade80','#60a5fa','#f9a8d4','#fb923c','#a78bfa','#34d399'];
+function tagColor(t){ let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))%TAG_COLORS.length; return TAG_COLORS[h]; }
+
+function addTag(){
+  const t=prompt('Tag naam:')?.trim();
+  if(!t) return;
+  const proj=projects.find(p=>p.id===currentProjectId);
+  const page=proj?.items.find(i=>i.id===currentPageId);
+  if(!page) return;
+  if(!page.tags) page.tags=[];
+  if(!page.tags.includes(t)) page.tags.push(t);
+  renderPageTags(page); renderTree(); saveData();
+}
+
+function removeTag(t){
+  const proj=projects.find(p=>p.id===currentProjectId);
+  const page=proj?.items.find(i=>i.id===currentPageId);
+  if(!page||!page.tags) return;
+  page.tags=page.tags.filter(x=>x!==t);
+  renderPageTags(page); renderTree(); saveData();
+}
+
+// =================== EDITOR ===================
+function focusEditor(e){ if(e.target===e.currentTarget||e.target.id==='editor-container') editor.focus(); }
+
+function handleEditorInput(){
+  updateStats();
+  if(typewriterMode) scrollToCurrentLine();
+}
+
+function handleKeydown(e){
+  playTypingSound();
+  // Markdown shortcuts
+  const ctrl=e.ctrlKey||e.metaKey;
+  if(e.key==='Enter'){
+    // Auto-continue list handled by browser
+  }
+  // Check for ## heading shortcut on space
+  if(e.key===' '&&!ctrl){
+    const sel=window.getSelection();
+    if(!sel.rangeCount) return;
+    const node=sel.anchorNode;
+    if(node&&node.nodeType===3){
+      const txt=node.textContent.slice(0,sel.anchorOffset);
+      if(txt==='##'){ e.preventDefault(); document.execCommand('delete'); document.execCommand('delete'); formatText('formatBlock','h2'); }
+      else if(txt==='#'){ e.preventDefault(); document.execCommand('delete'); formatText('formatBlock','h1'); }
+      else if(txt==='###'){ e.preventDefault(); document.execCommand('delete'); document.execCommand('delete'); document.execCommand('delete'); formatText('formatBlock','h3'); }
+      else if(txt==='>'){ e.preventDefault(); document.execCommand('delete'); formatText('formatBlock','blockquote'); }
+      else if(txt==='-'||txt==='*'){ e.preventDefault(); document.execCommand('delete'); formatText('insertUnorderedList'); }
+    }
+  }
+}
+
+function updateCursorLine(){
+  if(!typewriterMode) return;
+  scrollToCurrentLine();
+}
+
+function scrollToCurrentLine(){
+  const sel=window.getSelection();
+  if(!sel.rangeCount) return;
+  const range=sel.getRangeAt(0);
+  const rect=range.getBoundingClientRect();
+  const cont=document.getElementById('editor-container');
+  const contRect=cont.getBoundingClientRect();
+  const line=document.getElementById('cursor-line');
+  line.style.top=(rect.top-contRect.top+cont.scrollTop-2)+'px';
+}
+
+function updateStats(){
+  const text=editor.innerText||'';
+  const words=countWords(text);
+  const chars=text.replace(/\n/g,'').length;
+  const mins=Math.max(1,Math.ceil(words/200));
+  document.getElementById('word-count').textContent=`${words} woorden`;
+  document.getElementById('char-count').textContent=`${chars} tekens`;
+  document.getElementById('read-time').textContent=`~${mins} min`;
+
+  // Daily goal
+  const today=todayKey();
+  const stored=parseInt(localStorage.getItem(`zenai_words_${today}`)||'0');
+  if(words>stored){ localStorage.setItem(`zenai_words_${today}`,words); todayWords=words; updateGoalBar(words); checkMilestone(words); }
+}
+
+function updateGoalBar(words){
+  const pct=Math.min(100,Math.round((words/dailyGoal)*100));
+  document.getElementById('goal-bar-inner').style.width=pct+'%';
+  document.getElementById('goal-pct').textContent=pct+'%';
+  document.getElementById('goal-words').textContent=`${words}/${dailyGoal} woorden`;
+}
+
+function checkMilestone(words){
+  const milestones=[100,250,500,750,1000,1500,2000,5000];
+  for(const m of milestones){
+    if(words>=m&&lastMilestone<m){ lastMilestone=m; showMilestone(`🎉 ${m} woorden bereikt!`); break; }
+  }
+  if(words>=dailyGoal&&lastMilestone<dailyGoal+1){ lastMilestone=dailyGoal+1; showMilestone(`✅ Dagelijks doel van ${dailyGoal} bereikt!`); }
+}
+
+function showMilestone(msg){
+  const t=document.getElementById('milestone-toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// Formatting
+function formatText(cmd,val=null){ editor.focus(); document.execCommand(cmd,false,val); }
+function applyHL(color){ editor.focus(); try{ document.execCommand('hiliteColor',false,color); } catch(e){ document.execCommand('backColor',false,color); } }
+function removeHL(){ editor.focus(); try{ document.execCommand('hiliteColor',false,'transparent'); } catch(e){ document.execCommand('backColor',false,'transparent'); } }
+function insertLink(){ const url=prompt('URL:'); if(url) formatText('createLink',url); }
+function insertHR(){ formatText('insertHTML','<hr>'); }
+function insertImageFromURL(){ const url=prompt('Afbeelding URL:'); if(url) formatText('insertHTML',`<img src="${url}" alt="afbeelding">`); }
+function insertTable(){
+  const html=`<table><thead><tr><th>Kolom 1</th><th>Kolom 2</th><th>Kolom 3</th></tr></thead><tbody><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></tbody></table><p>&#8203;</p>`;
+  formatText('insertHTML',html);
+}
+function setEditorFont(val){
+  const fonts={mono:'"Fira Code",monospace',sans:'Inter,sans-serif',serif:'"Crimson Pro",Georgia,serif'};
+  editor.style.fontFamily=fonts[val]||fonts.mono;
+  localStorage.setItem('zenai_editor_font',val);
+}
+function setFontSize(size){ formatText('fontSize',size); }
+function toggleToolbar(){ document.getElementById('toolbar-bar').classList.toggle('hidden'); lucide.createIcons(); }
+
+// =================== TYPING SOUNDS ===================
+function getAudioCtx(){ if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+
+function playTypingSound(){
+  if(!typingSounds) return;
+  try{
+    const ctx=getAudioCtx();
+    if(ctx.state==='suspended') ctx.resume();
+    const bufSize=Math.floor(ctx.sampleRate*0.012);
+    const buf=ctx.createBuffer(1,bufSize,ctx.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/bufSize,8)*0.35;
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const gain=ctx.createGain(); gain.gain.value=0.08;
+    const filter=ctx.createBiquadFilter(); filter.type='bandpass'; filter.frequency.value=2000;
+    src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    src.start(0);
+  } catch(e){}
+}
+
+function toggleTypingSounds(){
+  typingSounds=!typingSounds;
+  localStorage.setItem('zenai_sounds',JSON.stringify(typingSounds));
+  updateSoundUI();
+  if(typingSounds) setTimeout(playTypingSound,80);
+}
+
+function updateSoundUI(){
+  const btn=document.getElementById('snd-btn');
+  const tog=document.getElementById('sound-toggle');
+  if(btn){ btn.querySelector('i')?.setAttribute('data-lucide',typingSounds?'volume-2':'volume-x'); btn.classList.toggle('text-zen-accent',typingSounds); lucide.createIcons(); }
+  if(tog) tog.classList.toggle('on',typingSounds);
+}
+
+// =================== TYPEWRITER MODE ===================
+function toggleTypewriterMode(){
+  typewriterMode=!typewriterMode;
+  localStorage.setItem('zenai_typewriter',JSON.stringify(typewriterMode));
+  document.body.classList.toggle('typewriter-mode',typewriterMode);
+  document.getElementById('cursor-line').style.display=typewriterMode?'block':'none';
+  updateTWUI();
+}
+function updateTWUI(){
+  const btn=document.getElementById('tw-btn'); const tog=document.getElementById('tw-toggle');
+  btn?.classList.toggle('text-zen-accent',typewriterMode);
+  if(tog) tog.classList.toggle('on',typewriterMode);
+  document.body.classList.toggle('typewriter-mode',typewriterMode);
+}
+
+// =================== SPELLCHECK ===================
+function toggleSpellcheck(){
+  spellcheckOn=!spellcheckOn;
+  localStorage.setItem('zenai_spell',JSON.stringify(spellcheckOn));
+  editor.spellcheck=spellcheckOn;
+  updateSpellUI();
+}
+function updateSpellUI(){ const t=document.getElementById('spell-toggle'); if(t) t.classList.toggle('on',spellcheckOn); editor.spellcheck=spellcheckOn; }
+
+// =================== FOCUS MODE ===================
+function toggleFocusDD(){ document.getElementById('focus-dd').classList.toggle('open'); }
+
+function setFocus(mode){
+  exitFocus();
+  currentFocusMode=mode;
+  document.body.classList.add(`focus-${mode}`);
+  document.getElementById('exit-focus-btn').classList.remove('hidden');
+  document.getElementById('focus-dd').classList.remove('open');
+  editor.focus();
+}
+
+function exitFocus(){
+  if(!currentFocusMode) return;
+  document.body.classList.remove(`focus-${currentFocusMode}`);
+  currentFocusMode=null;
+  document.getElementById('exit-focus-btn').classList.add('hidden');
+}
+
+// =================== SIDEBARS ===================
+function toggleSidebarLeft(){ document.getElementById('left-sidebar').classList.toggle('hidden'); }
+function toggleSidebarRight(){
+  isSidebarRightOpen=!isSidebarRightOpen;
+  const sb=document.getElementById('ai-sidebar');
+  const btn=document.getElementById('ai-toggle-btn');
+  if(isSidebarRightOpen){ sb.classList.remove('hidden'); sb.classList.add('flex'); btn.classList.add('text-zen-accent'); }
+  else { sb.classList.add('hidden'); sb.classList.remove('flex'); btn.classList.remove('text-zen-accent'); }
+}
+
+// =================== NI DROPDOWN ===================
+function toggleNI(){ document.getElementById('ni-dropdown').classList.toggle('open'); }
+function closeNI(){ document.getElementById('ni-dropdown')?.classList.remove('open'); }
+function triggerAISplit(){ closeNI(); document.getElementById('ai-split-upload').click(); }
+function toggleExpDD(){ document.getElementById('exp-dd').classList.toggle('open'); }
+function closeExpDD(){ document.getElementById('exp-dd')?.classList.remove('open'); }
+
+// =================== FIND & REPLACE ===================
+function openFindModal(){ document.getElementById('find-modal').classList.remove('hidden'); document.getElementById('find-msg').classList.add('hidden'); setTimeout(()=>document.getElementById('find-input').focus(),80); }
+function closeFindModal(){ document.getElementById('find-modal').classList.add('hidden'); }
+function doFind(){
+  const q=document.getElementById('find-input').value; if(!q) return;
+  const esc=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const count=(editor.innerText.match(new RegExp(esc,'gi'))||[]).length;
+  const msg=document.getElementById('find-msg');
+  msg.textContent=count?`${count} resultaat(en) gevonden`:'Niets gevonden'; msg.classList.remove('hidden');
+  if(count) window.find(q);
+}
+function doReplace(){
+  const f=document.getElementById('find-input').value,r=document.getElementById('replace-input').value; if(!f) return;
+  if(window.getSelection()?.toString()===f) document.execCommand('insertText',false,r); else window.find(f);
+}
+function doReplaceAll(){
+  const f=document.getElementById('find-input').value,r=document.getElementById('replace-input').value; if(!f) return;
+  const esc=f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT); const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+  let count=0;
+  nodes.forEach(n=>{ const re=new RegExp(esc,'g'); n.nodeValue=n.nodeValue.replace(re,()=>{count++;return r;}); });
+  document.getElementById('find-msg').textContent=`${count} vervangingen`; document.getElementById('find-msg').classList.remove('hidden');
+  saveCurrentContent();
+}
+
+// =================== VERSIONS ===================
+function openVersionHistory(){
+  const hist=versionHistory[currentPageId]||[];
+  const list=document.getElementById('version-list');
+  if(!hist.length){ list.innerHTML='<p class="text-xs text-zen-muted text-center py-6">Nog geen versies opgeslagen. Begin met typen!</p>'; }
+  else {
+    list.innerHTML='';
+    [...hist].reverse().forEach((v,i)=>{
+      const div=document.createElement('div');
+      div.className='version-item flex items-center justify-between px-3 py-2.5 rounded-lg border border-zen-border hover:border-zen-accent/40';
+      div.innerHTML=`
+        <div>
+          <p class="text-xs font-medium text-zen-text">${new Date(v.ts).toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'})} — ${v.words} woorden</p>
+          <p class="text-[10px] text-zen-muted">${relativeTime(v.ts)}</p>
+        </div>
+        <button onclick="restoreVersion(${hist.length-1-i})" class="text-xs px-2.5 py-1.5 bg-zen-accent/15 text-zen-accent border border-zen-accent/30 rounded-md hover:bg-zen-accent/25 transition-colors">Herstel</button>`;
+      list.appendChild(div);
+    });
+  }
+  document.getElementById('version-modal').classList.remove('hidden');
+}
+function closeVersionModal(){ document.getElementById('version-modal').classList.add('hidden'); }
+function restoreVersion(idx){
+  const hist=versionHistory[currentPageId]||[];
+  if(!hist[idx]) return;
+  if(!confirm('Huidige inhoud vervangen met deze versie?')) return;
+  editor.innerHTML=hist[idx].content;
+  saveCurrentContent();
+  closeVersionModal();
+}
+
+// =================== DOWNLOAD ===================
+function downloadDocument(fmt){
+  if(!currentPageId) return;
+  const proj=projects.find(p=>p.id===currentProjectId);
+  const page=proj?.items.find(i=>i.id===currentPageId);
+  const title=page?.title||'Document';
+  let blob,ext;
+  if(fmt==='txt'){ blob=new Blob([editor.innerText],{type:'text/plain;charset=utf-8'}); ext='txt'; }
+  else if(fmt==='html'){
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title>
+<style>body{font-family:Georgia,serif;max-width:780px;margin:3rem auto;padding:0 2rem;line-height:1.85;color:#222}
+h1,h2{margin-top:2em}blockquote{border-left:3px solid #e2b714;padding:.3em 1em;color:#666}
+code{background:#f4f4f4;padding:1px 5px;border-radius:3px;font-family:monospace}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:.5em .8em}</style>
+</head><body><h1>${title}</h1>${editor.innerHTML}</body></html>`;
+    blob=new Blob([html],{type:'text/html;charset=utf-8'}); ext='html';
+  } else if(fmt==='md'){
+    let md=`# ${title}\n\n`+editor.innerText; blob=new Blob([md],{type:'text/markdown;charset=utf-8'}); ext='md';
+  }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${title}.${ext}`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  closeExpDD();
+}
+
+// =================== FILE UPLOAD ===================
+async function handleFileUpload(event){
+  const file=event.target.files[0]; if(!file) return;
+  try{
+    if(file.type==='text/plain'||file.name.endsWith('.md')){ formatText('insertHTML',(await file.text()).replace(/\n/g,'<br>')); }
+    else if(file.type==='application/pdf'){
+      const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+      let t=''; for(let i=1;i<=pdf.numPages;i++) t+=(await(await pdf.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+'<br><br>';
+      formatText('insertHTML',t);
+    }
+  } catch(e){ alert('Bestand kon niet worden gelezen.'); }
+  event.target.value='';
+}
+
+// =================== COMMAND PALETTE ===================
+let cmdSelected=0;
+function openCommandPalette(){
+  document.getElementById('cmd-backdrop').classList.remove('hidden');
+  document.getElementById('cmd-palette').classList.add('open');
+  const inp=document.getElementById('cmd-input');
+  inp.value=''; filterCommands('');
+  setTimeout(()=>inp.focus(),60);
+}
+function closeCommandPalette(){
+  document.getElementById('cmd-backdrop').classList.add('hidden');
+  document.getElementById('cmd-palette').classList.remove('open');
+}
+function renderCmdList(cmds){
+  const list=document.getElementById('cmd-list');
+  list.innerHTML='';
+  if(!cmds.length){ list.innerHTML='<p class="text-xs text-zen-muted text-center py-4">Geen commando\'s gevonden</p>'; return; }
+  cmds.forEach((cmd,i)=>{
+    const div=document.createElement('div');
+    div.className=`cmd-item ${i===cmdSelected?'selected':''}`;
+    div.innerHTML=`<i data-lucide="${cmd.icon}" class="w-4 h-4 text-zen-muted flex-shrink-0"></i><span>${cmd.label}</span>${cmd.shortcut?`<kbd>${cmd.shortcut}</kbd>`:''}`;
+    div.onclick=()=>{ closeCommandPalette(); cmd.action(); };
+    list.appendChild(div);
+  });
+  lucide.createIcons();
+}
+function filterCommands(q){
+  const filt=q?COMMANDS.filter(c=>c.label.toLowerCase().includes(q.toLowerCase())):COMMANDS;
+  cmdSelected=0; renderCmdList(filt);
+}
+function handleCmdKey(e){
+  const items=document.querySelectorAll('.cmd-item');
+  if(e.key==='ArrowDown'){ e.preventDefault(); cmdSelected=Math.min(cmdSelected+1,items.length-1); items.forEach((el,i)=>el.classList.toggle('selected',i===cmdSelected)); items[cmdSelected]?.scrollIntoView({block:'nearest'}); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); cmdSelected=Math.max(0,cmdSelected-1); items.forEach((el,i)=>el.classList.toggle('selected',i===cmdSelected)); items[cmdSelected]?.scrollIntoView({block:'nearest'}); }
+  else if(e.key==='Enter'){ e.preventDefault(); items[cmdSelected]?.click(); }
+  else if(e.key==='Escape'){ closeCommandPalette(); }
+}
+
+// =================== GOAL SETTINGS ===================
+function openGoalSettings(){
+  const g=prompt('Dagelijks schrijfdoel (woorden):',dailyGoal);
+  if(!g||isNaN(g)) return;
+  dailyGoal=Math.max(50,parseInt(g));
+  localStorage.setItem('zenai_goal',dailyGoal);
+  updateGoalBar(todayWords);
+}
+
+// =================== POMODORO ===================
+function openPomodoroPanel(){
+  document.getElementById('pomo-count').textContent=pomoSessionsToday;
+  document.getElementById('pomo-total-time').textContent=pomoTotalMinutes+' min';
+  document.getElementById('pomo-modal').classList.remove('hidden');
+  updatePomoUI();
+}
+function closePomodoroPanel(){ document.getElementById('pomo-modal').classList.add('hidden'); }
+function setPomoMode(mode,mins){
+  pomoMode=mode; pomoSeconds=mins*60; pomoTotal=mins*60; pomoRunning=false;
+  clearInterval(pomoTimer);
+  ['focus','short','long'].forEach(m=>{ document.getElementById(`pomo-tab-${m}`)?.classList.remove('bg-zen-accent','text-zen-bg','font-semibold'); document.getElementById(`pomo-tab-${m}`)?.classList.add('text-zen-muted'); });
+  const active=document.getElementById(`pomo-tab-${mode}`); if(active){ active.classList.add('bg-zen-accent','text-zen-bg','font-semibold'); active.classList.remove('text-zen-muted'); }
+  const btn=document.getElementById('pomo-start-btn'); btn.innerHTML='<i data-lucide="play" class="w-4 h-4"></i> Start'; lucide.createIcons();
+  document.getElementById('pomo-phase-label').textContent={focus:'Focus',short:'Korte pauze',long:'Lange pauze'}[mode];
+  updatePomoUI();
+}
+function togglePomodoro(){
+  if(pomoRunning){ pomoRunning=false; clearInterval(pomoTimer); document.getElementById('pomo-start-btn').innerHTML='<i data-lucide="play" class="w-4 h-4"></i> Start'; }
+  else { pomoRunning=true; document.getElementById('pomo-start-btn').innerHTML='<i data-lucide="pause" class="w-4 h-4"></i> Pauzeer'; pomoTimer=setInterval(pomoTick,1000); }
+  lucide.createIcons();
+}
+function resetPomodoro(){ pomoRunning=false; clearInterval(pomoTimer); pomoSeconds=pomoTotal; updatePomoUI(); document.getElementById('pomo-start-btn').innerHTML='<i data-lucide="play" class="w-4 h-4"></i> Start'; lucide.createIcons(); }
+function pomoTick(){
+  if(pomoSeconds<=0){ clearInterval(pomoTimer); pomoRunning=false; pomoSessionsToday++; pomoTotalMinutes+=Math.floor(pomoTotal/60); localStorage.setItem('zenai_pomo_sessions',pomoSessionsToday); localStorage.setItem('zenai_pomo_minutes',pomoTotalMinutes); document.getElementById('pomo-count').textContent=pomoSessionsToday; document.getElementById('pomo-total-time').textContent=pomoTotalMinutes+' min'; showMilestone('⏱️ Pomodoro voltooid! Neem een pauze.'); resetPomodoro(); return; }
+  pomoSeconds--; updatePomoUI();
+}
+function updatePomoUI(){
+  const m=Math.floor(pomoSeconds/60),s=pomoSeconds%60;
+  const disp=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  document.getElementById('pomo-mini-time').textContent=disp;
+  const el=document.getElementById('pomo-display'); if(el) el.textContent=disp;
+  const pct=1-(pomoSeconds/pomoTotal);
+  // Mini ring: circumference = 2*pi*11 = 69.1
+  const mini=document.getElementById('pomo-mini-ring'); if(mini) mini.setAttribute('stroke-dashoffset',69.1*pct);
+  // Big ring: circumference = 2*pi*60 = 377
+  const big=document.getElementById('pomo-big-ring'); if(big) big.setAttribute('stroke-dashoffset',377*pct);
+  // Mini label
+  document.getElementById('pomo-mini-label').textContent={focus:'Focus',short:'Pauze',long:'Lang'}[pomoMode];
+  const dot=document.getElementById('pomo-dot'); if(dot) dot.style.background=pomoRunning?'#e2b714':'#4a4d52';
+}
+
+// =================== AI CHAT ===================
+function appendMessage(role,text){
+  const wrap=document.createElement('div');
+  wrap.className=`flex flex-col ${role==='user'?'items-end':'items-start'}`;
+  const bubble=document.createElement('div');
+  bubble.className=`max-w-[90%] p-3 rounded-xl leading-relaxed text-xs ${role==='user'?'bg-zen-accent text-zen-bg font-medium':'bg-zen-bg text-zen-text border border-zen-border'}`;
+  if(role==='ai'){
+    bubble.innerHTML=text
+      .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g,'<em>$1</em>')
+      .replace(/`([^`]+)`/g,'<code style="background:#252729;padding:1px 5px;border-radius:3px;color:#e2b714;font-size:.9em;font-family:monospace">$1</code>')
+      .replace(/^#{1,3}\s(.+)$/gm,'<strong class="text-zen-accent">$1</strong>')
+      .replace(/^[-*]\s(.+)$/gm,'• $1')
+      .replace(/\n/g,'<br>');
+  } else { bubble.textContent=text; }
+  wrap.appendChild(bubble);
+  const hist=document.getElementById('chat-history');
+  hist.appendChild(wrap); hist.scrollTop=hist.scrollHeight;
+}
+
+function clearChat(){ document.getElementById('chat-history').innerHTML='<div class="flex flex-col items-start"><div class="max-w-[90%] p-3 rounded-xl bg-zen-bg text-zen-text border border-zen-border text-xs">Chat gewist. Waar kan ik je mee helpen?</div></div>'; }
+
+async function handleAIQuery(query=document.getElementById('chat-input').value){
+  if(!query.trim()||isThinking) return;
+  if(!apiKey){ openApiKeyModal(); return; }
+  if(!isSidebarRightOpen) toggleSidebarRight();
+  appendMessage('user',query);
+  document.getElementById('chat-input').value='';
+  isThinking=true;
+  document.getElementById('send-btn').disabled=true;
+  document.getElementById('thinking-indicator').classList.remove('hidden');
+  try{
+    const res=await callGemini(editor.innerText,query);
+    appendMessage('ai',res);
+  } catch(e){ appendMessage('ai',`⚠️ Fout: ${e.message}`); }
+  finally{ isThinking=false; document.getElementById('send-btn').disabled=false; document.getElementById('thinking-indicator').classList.add('hidden'); }
+}
+
+// =================== INLINE SUMMARY ===================
+async function insertInlineSummary(){
+  if(!editor.innerText.trim()) return alert('Document is leeg.');
+  if(!apiKey){ openApiKeyModal(); return; }
+  const old=editor.innerHTML;
+  editor.innerHTML=`<div style="color:#4a4d52;font-style:italic;font-size:.9em;padding:1rem 0" id="temp-load">✦ Samenvatting genereren...</div>`+old;
+  try{
+    const s=await callGemini(editor.innerText,'Schrijf een beknopte samenvatting van 2-4 zinnen. Geef alleen de samenvatting terug.');
+    document.getElementById('temp-load')?.remove();
+    editor.innerHTML=`<div class="ai-callout" contenteditable="true"><strong>✦ AI Samenvatting</strong>${s}</div><p>&#8203;</p>`+editor.innerHTML;
+    saveCurrentContent();
+  } catch(e){ document.getElementById('temp-load')?.remove(); alert('Samenvatting mislukt: '+e.message); }
+}
+
+// =================== AI SPLIT ===================
+async function handleAISplitImport(event){
+  if(!currentProjectId) return alert('Open eerst een project.');
+  if(!apiKey){ openApiKeyModal(); return; }
+  const file=event.target.files[0]; if(!file) return;
+  const loader=document.getElementById('global-loader');
+  loader.classList.remove('hidden'); loader.classList.add('flex');
+  try{
+    let text='';
+    if(file.type==='text/plain') text=await file.text();
+    else if(file.type==='application/pdf'){ const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise; for(let i=1;i<=pdf.numPages;i++) text+=(await(await pdf.getPage(i)).getTextContent()).items.map(x=>x.str).join(' ')+'\n'; }
+    if(!text.trim()) throw new Error('Leeg of onleesbaar bestand.');
+    const prompt=`Analyseer en splits in logische secties. JSON-formaat:
+{"folderName":"Mapnaam","sections":[{"title":"Titel","content":"HTML met <p>,<h2>,<ul>,<strong>"}]}
+TEKST: ${text.substring(0,100000)}`;
+    const result=await callGemini('',prompt,true);
+    if(result?.sections){
+      const proj=projects.find(p=>p.id===currentProjectId);
+      const fid='f_'+Date.now();
+      proj.items.push({id:fid,type:'folder',title:result.folderName||'Geïmporteerd',parentId:null});
+      result.sections.forEach((s,i)=>proj.items.push({id:'p_'+Date.now()+'_'+i,type:'page',title:s.title||`Sectie ${i+1}`,parentId:fid,content:s.content||'',tags:[],versions:[]}));
+      proj.updated=Date.now(); saveData(); renderTree();
+      const fp=proj.items.find(i=>i.parentId===fid&&i.type==='page'); if(fp) openPage(fp.id);
+    } else throw new Error('Ongeldig AI-formaat.');
+  } catch(e){ console.error(e); alert('Fout: '+e.message); }
+  finally{ loader.classList.add('hidden'); loader.classList.remove('flex'); event.target.value=''; }
+}
+
+// =================== GEMINI ===================
+async function callGemini(docText,prompt,expectJson=false){
+  const personas={helpful:'een behulpzame assistent',creative:'een creatieve schrijver',strict:'een strenge grammatica-expert',teacher:'een geduldige leraar',coach:'een motiverende coach',researcher:'een kritische analist'};
+  const langs={auto:'dezelfde taal als de gebruiker en het document',nl:'Nederlands',en:'English',fr:'français',de:'Deutsch',es:'español',it:'italiano',pt:'português',ja:'日本語',zh:'中文'};
+  const system=`Je bent ${personas[aiTone]||'een behulpzame assistent'}. Antwoord altijd in het ${langs[responseLang]||'dezelfde taal als de gebruiker'}. Gebruik Markdown. Document: """${docText||'(leeg)'}"""`;
+  const payload={contents:[{parts:[{text:prompt}]}],systemInstruction:{parts:[{text:system}]}};
+  if(expectJson) payload.generationConfig={responseMimeType:'application/json'};
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d=await r.json();
+  if(d.error) throw new Error(d.error.message);
+  const t=d.candidates?.[0]?.content?.parts?.[0]?.text;
+  return expectJson?JSON.parse(t):(t||'Geen antwoord.');
+}
+
+// =================== SETTINGS ===================
+function toggleSettings(){
+  const m=document.getElementById('settings-modal');
+  m.classList.toggle('hidden');
+  if(!m.classList.contains('hidden')){
+    document.getElementById('ai-persona').value=aiTone;
+    document.getElementById('ai-language').value=responseLang;
+    document.getElementById('goal-input').value=dailyGoal;
+    document.getElementById('settings-api-key').value=apiKey;
+    document.getElementById('settings-api-status').classList.add('hidden');
+    renderSettingsPrompts(); updateSoundUI(); updateTWUI(); updateSpellUI(); lucide.createIcons();
+  }
+}
+
+function saveSettings(){
+  aiTone=document.getElementById('ai-persona').value;
+  responseLang=document.getElementById('ai-language').value;
+  dailyGoal=Math.max(50,parseInt(document.getElementById('goal-input').value)||500);
+  localStorage.setItem('zenai_tone',aiTone); localStorage.setItem('zenai_lang',responseLang); localStorage.setItem('zenai_goal',dailyGoal);
+  // Collect prompts
+  customPrompts=Array.from(document.querySelectorAll('.cp-entry')).map((d,i)=>({id:'cp_'+i,label:d.querySelector('.cp-lbl').value||'Knop',prompt:d.querySelector('.cp-prm').value||''})).filter(p=>p.prompt.trim());
+  saveData(); renderCustomPromptsSidebar(); updateGoalBar(todayWords); toggleSettings();
+}
+
+function switchSettingsTab(name,btn){
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.stab-content').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('stab-'+name)?.classList.add('active');
+}
+
+function renderSettingsPrompts(){ const l=document.getElementById('prompts-list'); l.innerHTML=''; customPrompts.forEach(cp=>l.appendChild(mkPromptEntry(cp))); }
+function addNewPromptEntry(){ const el=mkPromptEntry({label:'Nieuwe knop',prompt:''}); document.getElementById('prompts-list').appendChild(el); el.querySelector('.cp-lbl').focus(); }
+function mkPromptEntry(cp){
+  const div=document.createElement('div');
+  div.className='cp-entry flex gap-2 items-start bg-zen-bg p-3 rounded-lg border border-zen-border';
+  div.innerHTML=`<div class="flex-1 space-y-1.5"><input class="cp-lbl w-full bg-zen-panel border border-zen-border rounded-md px-2.5 py-1.5 text-xs text-zen-text outline-none focus:border-zen-accent" placeholder="Naam" value="${cp.label}"><textarea class="cp-prm w-full bg-zen-panel border border-zen-border rounded-md px-2.5 py-1.5 text-xs text-zen-text outline-none focus:border-zen-accent h-12 resize-none" placeholder="AI-instructie">${cp.prompt}</textarea></div><button onclick="this.parentElement.remove()" class="text-zen-muted hover:text-red-400 p-1 mt-0.5 transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`;
+  lucide.createIcons({el:div}); return div;
+}
+function renderCustomPromptsSidebar(){
+  const c=document.getElementById('custom-prompts-container'); c.innerHTML='';
+  customPrompts.forEach(cp=>{
+    const btn=document.createElement('button');
+    btn.className='whitespace-nowrap px-2.5 py-1 rounded-full bg-zen-bg text-zen-muted hover:text-zen-accent border border-zen-border transition-all text-[11px] hover:border-zen-accent/50';
+    btn.innerHTML=`<i data-lucide="zap" class="w-2.5 h-2.5 inline mr-1 -mt-0.5"></i>${cp.label}`;
+    btn.onclick=()=>handleAIQuery(cp.prompt);
+    c.appendChild(btn);
+  });
+  lucide.createIcons({el:c});
+}
+
+// =================== MODALS ===================
+function openNameModal(title,init,cb,btnLabel='Aanmaken'){
+  nameModalCb=cb;
+  document.getElementById('name-modal-title').textContent=title;
+  document.getElementById('name-confirm-btn').textContent=btnLabel;
+  const inp=document.getElementById('name-modal-input');
+  inp.value=init||''; inp.placeholder='Naam...';
+  document.getElementById('name-modal').classList.remove('hidden');
+  setTimeout(()=>{ inp.focus(); if(init) inp.select(); },80);
+}
+function closeNameModal(){ document.getElementById('name-modal').classList.add('hidden'); nameModalCb=null; }
+function confirmNameModal(){
+  const v=document.getElementById('name-modal-input').value.trim();
+  if(!v) return;
+  const cb=nameModalCb; closeNameModal(); if(cb) cb(v);
+}
+function openConfirm(msg,cb){
+  confirmModalCb=cb;
+  document.getElementById('confirm-msg').textContent=msg;
+  document.getElementById('confirm-ok').onclick=()=>{ closeConfirm(); if(confirmModalCb) confirmModalCb(); };
+  document.getElementById('confirm-modal').classList.remove('hidden');
+}
+function closeConfirm(){ document.getElementById('confirm-modal').classList.add('hidden'); confirmModalCb=null; }
+
+// =================== START ===================
+init();
+</script>
+</body>
+</html>
