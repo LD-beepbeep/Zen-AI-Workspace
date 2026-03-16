@@ -419,7 +419,22 @@ input[type=range]::-webkit-slider-thumb:hover {
 .st2:hover { background: var(--hv); color: var(--tx); }
 .st2.on    { background: var(--hv); color: var(--acc); }
 .sp        { display: none; }
-.sp.on     { display: flex; flex-direction: column; }
+/* .sp.on display is set by JS so it respects the gap/flex-direction per panel */
+
+/* Focus mode word counter */
+#focus-wc {
+  position: fixed;
+  bottom: 1.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .7rem;
+  font-family: 'JetBrains Mono', monospace;
+  opacity: .35;
+  pointer-events: none;
+  z-index: 102;
+  transition: opacity .2s;
+  letter-spacing: .04em;
+}
 
 /* ══════════════════════════════════════════
    SOUND & FONT CARDS
@@ -578,3 +593,25 @@ input[type=range]::-webkit-slider-thumb:hover {
   align-items: center; justify-content: center;
   backdrop-filter: blur(7px);
 }
+
+/* ══════════════════════════════════════════
+   CODE BLOCK COPY BUTTON
+   ══════════════════════════════════════════ */
+#ed pre { position: relative !important; }
+.copy-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  padding: 4px 7px;
+  background: var(--s2);
+  border: 1px solid var(--br);
+  border-radius: 5px;
+  color: var(--tx3);
+  cursor: pointer;
+  font-size: .65rem;
+  font-family: 'DM Sans', sans-serif;
+  display: flex; align-items: center; gap: 4px;
+  transition: all .15s;
+  opacity: 0;
+}
+#ed pre:hover .copy-btn { opacity: 1; }
+.copy-btn:hover { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 40%, transparent); }
